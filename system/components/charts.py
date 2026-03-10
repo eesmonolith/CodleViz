@@ -313,12 +313,12 @@ def activity_type_stacked(df: pd.DataFrame) -> go.Figure:
         title=dict(text="차시별 활동 유형 분포", x=0.5, font=dict(size=14)),
         xaxis=dict(title="", dtick=1, tickfont=dict(size=11)),
         yaxis=dict(title="비율 (%)", range=[0, 100]),
-        height=420,
+        height=480,
         legend=dict(
-            orientation="h", yanchor="top", y=-0.08, xanchor="center", x=0.5,
+            orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5,
             font=dict(size=10), tracegroupgap=5,
         ),
-        margin=dict(l=60, r=20, t=50, b=100),
+        margin=dict(l=60, r=20, t=50, b=140),
     )
     return fig
 
