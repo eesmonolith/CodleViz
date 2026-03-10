@@ -310,15 +310,15 @@ def activity_type_stacked(df: pd.DataFrame) -> go.Figure:
     fig.update_layout(
         font=LAYOUT_DEFAULTS["font"],
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
-        title=dict(text="차시별 활동 유형 분포", x=0.5, font=dict(size=14)),
-        xaxis=dict(title="", dtick=1, tickfont=dict(size=11)),
-        yaxis=dict(title="비율 (%)", range=[0, 100]),
-        height=480,
+        title=dict(text="", font=dict(size=1)),
+        xaxis=dict(title="", dtick=1, tickfont=dict(size=11), showgrid=False),
+        yaxis=dict(title="", range=[0, 100], ticksuffix="%", showgrid=True, gridcolor="#F1F5F9"),
+        height=380,
         legend=dict(
-            orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5,
-            font=dict(size=10), tracegroupgap=5,
+            orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5,
+            font=dict(size=10),
         ),
-        margin=dict(l=60, r=20, t=50, b=140),
+        margin=dict(l=40, r=20, t=60, b=30),
     )
     return fig
 
@@ -449,14 +449,14 @@ def dependency_scatter(heatmap_df: pd.DataFrame, all_students_df: pd.DataFrame =
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
         title=dict(text=_truncate(title, 35), x=0.5, font=dict(size=14)),
         xaxis=dict(title="코딩 단계 활동 수 (8-15차시)", gridcolor="#F1F5F9",
-                   title_standoff=10),
+                   title_standoff=5, title_font=dict(size=11)),
         yaxis=dict(title="평균 완료율 (%)", range=[-2, 108], gridcolor="#F1F5F9"),
-        height=520,
+        height=480,
         legend=dict(
-            orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5,
+            orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5,
             font=dict(size=10),
         ),
-        margin=dict(l=60, r=20, t=50, b=100),
+        margin=dict(l=60, r=20, t=70, b=50),
     )
     return fig
 
@@ -643,12 +643,12 @@ def trajectory_alignment(session_df: pd.DataFrame, summary_df: pd.DataFrame,
         xaxis=dict(title="", dtick=1, gridcolor="#F1F5F9", tickfont=dict(size=11)),
         yaxis=dict(title="기준선 대비 변화 (%p)", gridcolor="#F1F5F9",
                    zeroline=True, zerolinecolor="#94A3B8"),
-        height=520,
+        height=500,
         legend=dict(
-            orientation="h", yanchor="top", y=-0.08, xanchor="center", x=0.5,
+            orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5,
             font=dict(size=10),
         ),
-        margin=dict(l=60, r=20, t=70, b=100),
+        margin=dict(l=60, r=20, t=80, b=30),
     )
     return fig
 
@@ -705,10 +705,10 @@ def trajectory_sparklines(session_df: pd.DataFrame, summary_df: pd.DataFrame,
         barmode="group",
         xaxis=dict(title="", range=[0, 105], gridcolor="#F1F5F9", ticksuffix="%"),
         yaxis=dict(title="", autorange="reversed", tickfont=dict(size=9)),
-        height=max(500, len(classrooms) * 25 + 180),
-        margin=dict(l=200, r=20, t=50, b=90),
+        height=max(500, len(classrooms) * 25 + 150),
+        margin=dict(l=200, r=20, t=70, b=30),
         legend=dict(
-            orientation="h", yanchor="top", y=-0.06, xanchor="center", x=0.5,
+            orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5,
             font=dict(size=10),
         ),
     )

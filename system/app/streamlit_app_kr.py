@@ -161,7 +161,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ── Helper: 정보 카드 ──
+# ── Helper ──
+_PLOTLY_CONFIG = {"displayModeBar": False}
+
+def show_chart(fig):
+    """Plotly 차트를 toolbar 없이 표시"""
+    st.plotly_chart(fig, use_container_width=True, config=_PLOTLY_CONFIG)
+
 def info_card(text, card_type="info"):
     st.markdown(f'<div class="{card_type}-card">{text}</div>', unsafe_allow_html=True)
 
@@ -250,7 +256,7 @@ if view_level == "전체 현황":
         filtered_summary = summary[summary["curriculum"].isin(selected_curricula)]
         fig = school_comparison_bar(filtered_summary)
         fig.update_layout(title=dict(text="학교별 평균 진도율 비교"))
-        st.plotly_chart(fig, use_container_width=True)
+        show_chart(fig)
 
     with tab2:
         info_card("5개 역량(DC 데이터이해, DA 분석, DV 시각화, DI 해석, CT 컴퓨팅사고)의 전체 평균을 비교합니다.")
@@ -259,7 +265,7 @@ if view_level == "전체 현황":
         comp_filtered = comp_df[comp_df["classroom_name"].isin(filtered_classrooms)]
         fig = competency_comparison_grouped(comp_filtered)
         fig.update_layout(title=dict(text="전체 역량 평균 비교"))
-        st.plotly_chart(fig, use_container_width=True)
+        show_chart(fig)
 
         st.markdown("### 역량별 학교 비교")
         selected_comp = st.selectbox(
@@ -284,7 +290,7 @@ if view_level == "전체 현황":
             font=dict(family="Pretendard, Inter, sans-serif", size=12),
             paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
         )
-        st.plotly_chart(fig2, use_container_width=True)
+        show_chart(fig2)
 
     with tab3:
         info_card("각 차시에서 학생들이 수행한 활동 유형(영상, 코딩, 퀴즈 등)의 비율 변화를 보여줍니다.")
@@ -294,7 +300,7 @@ if view_level == "전체 현황":
             if len(curr_data) > 0:
                 fig = activity_type_stacked(curr_data)
                 fig.update_layout(title=dict(text=f"활동 유형 분포 — {curr}"))
-                st.plotly_chart(fig, use_container_width=True)
+                show_chart(fig)
 
     with tab4:
         info_card(
@@ -315,7 +321,7 @@ if view_level == "전체 현황":
                                      help="이 값 이상 하락하면 '절벽'으로 감지합니다") / 100
         fig = cliff_heatmap(filtered_session, summary, threshold=cliff_threshold)
         fig.update_layout(title=dict(text="전체 학교 절벽 감지 히트맵"))
-        st.plotly_chart(fig, use_container_width=True)
+        show_chart(fig)
 
         # 절벽 통계
         st.markdown("### 절벽 발생 요약")
@@ -358,13 +364,13 @@ if view_level == "전체 현황":
 
         fig = trajectory_alignment(filtered_session, summary)
         fig.update_layout(title=dict(text="기준선 정규화 궤적 비교"))
-        st.plotly_chart(fig, use_container_width=True)
+        show_chart(fig)
 
         st.markdown("### 단계별 성과 요약")
         info_card("4개 학습 단계(이해→분석→코딩→종합)별 평균 완료율을 학교별로 비교합니다.")
         fig2 = trajectory_sparklines(filtered_session, summary)
         fig2.update_layout(title=dict(text="학교별 단계 성과"))
-        st.plotly_chart(fig2, use_container_width=True)
+        show_chart(fig2)
 
 
 # ══════════════════════════════════════════════════════
@@ -395,7 +401,7 @@ elif view_level == "학교별":
         comp_data = get_competency_for_classroom(row["classroom_name"])
         with cols[i % len(cols)]:
             fig = competency_radar(comp_data, title=row["classroom_name"])
-            st.plotly_chart(fig, use_container_width=True)
+            show_chart(fig)
 
     st.markdown("---")
 
@@ -411,7 +417,7 @@ elif view_level == "학교별":
         sess_data = get_session_for_classroom(row["classroom_name"])
         if len(sess_data) > 0:
             fig = session_timeline(sess_data, title=row["classroom_name"])
-            st.plotly_chart(fig, use_container_width=True)
+            show_chart(fig)
 
 
 # ══════════════════════════════════════════════════════
@@ -440,7 +446,7 @@ elif view_level == "학급별":
         info_card("이 학급의 5개 역량 달성도입니다.")
         comp_data = get_competency_for_classroom(selected_classroom)
         fig = competency_radar(comp_data, title="5대 역량 점수")
-        st.plotly_chart(fig, use_container_width=True)
+        show_chart(fig)
 
         st.dataframe(
             comp_data[["competency", "avg_progress", "n_activities", "n_students"]]
@@ -462,7 +468,7 @@ elif view_level == "학급별":
         )
         sess_data = get_session_for_classroom(selected_classroom)
         fig = session_timeline(sess_data, title="15차시 학습 여정")
-        st.plotly_chart(fig, use_container_width=True)
+        show_chart(fig)
 
     with tab3:
         info_card(
@@ -475,7 +481,7 @@ elif view_level == "학급별":
         heat_data = get_heatmap_for_classroom(selected_classroom)
         if len(heat_data) > 0:
             fig = student_heatmap(heat_data, title="학생별 차시 진도")
-            st.plotly_chart(fig, use_container_width=True)
+            show_chart(fig)
         else:
             st.info("이 학급의 히트맵 데이터가 없습니다.")
 
@@ -493,7 +499,7 @@ elif view_level == "학급별":
         heat_data = get_heatmap_for_classroom(selected_classroom)
         if len(heat_data) > 0:
             fig = dependency_scatter(heat_data, title=f"AI 의존도 — {selected_classroom}")
-            st.plotly_chart(fig, use_container_width=True)
+            show_chart(fig)
 
             # 사분면 통계
             st.markdown("### 그룹별 학생 수")
@@ -596,7 +602,7 @@ elif view_level == "학생별":
             font=dict(family="Pretendard, Inter, sans-serif", size=13),
             paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        show_chart(fig)
 
     else:
         st.info("이 학급의 학생 데이터가 없습니다.")
