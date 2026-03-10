@@ -89,19 +89,23 @@ st.markdown("""
 
     /* 사이드바 */
     section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #1E293B 0%, #0F172A 100%);
+        background: #F8FAFC;
+        border-right: 1px solid #E2E8F0;
     }
     section[data-testid="stSidebar"] h1,
+    section[data-testid="stSidebar"] h2,
     section[data-testid="stSidebar"] label,
     section[data-testid="stSidebar"] .stMarkdown p,
+    section[data-testid="stSidebar"] .stMarkdown h2,
     section[data-testid="stSidebar"] span {
-        color: #E2E8F0 !important;
+        color: #1E293B !important;
     }
     section[data-testid="stSidebar"] .stSelectbox label,
     section[data-testid="stSidebar"] .stMultiSelect label,
     section[data-testid="stSidebar"] .stRadio label {
-        color: #94A3B8 !important;
+        color: #475569 !important;
         font-size: 0.8rem !important;
+        font-weight: 600 !important;
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
