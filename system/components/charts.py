@@ -161,11 +161,11 @@ def session_timeline(df: pd.DataFrame, title: str = "",
         font=LAYOUT_DEFAULTS["font"],
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
         title=dict(text=_truncate(title, 35), x=0.5, font=dict(size=14)),
-        xaxis=dict(title="차시", dtick=1, gridcolor="#F1F5F9"),
+        xaxis=dict(title="", dtick=1, gridcolor="#F1F5F9", tickfont=dict(size=11)),
         yaxis=dict(title="완료율 (%)", range=[0, 110], gridcolor="#F1F5F9"),
         height=380,
         showlegend=False,
-        margin=dict(l=60, r=20, t=60, b=40),
+        margin=dict(l=60, r=20, t=65, b=30),
     )
     return fig
 
@@ -196,10 +196,10 @@ def student_heatmap(df: pd.DataFrame, title: str = "") -> go.Figure:
         font=LAYOUT_DEFAULTS["font"],
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
         title=dict(text=title, x=0.5, font=dict(size=14)),
-        xaxis=dict(title="", side="top", tickfont=dict(size=11)),
-        yaxis=dict(title="", autorange="reversed", tickfont=dict(size=11)),
+        xaxis=dict(title="", side="top", tickfont=dict(size=10)),
+        yaxis=dict(title="", autorange="reversed", tickfont=dict(size=10)),
         height=max(300, len(pivot) * 22 + 100),
-        margin=dict(l=50, r=20, t=60, b=20),
+        margin=dict(l=50, r=20, t=80, b=20),
     )
     return fig
 
@@ -311,14 +311,14 @@ def activity_type_stacked(df: pd.DataFrame) -> go.Figure:
         font=LAYOUT_DEFAULTS["font"],
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
         title=dict(text="차시별 활동 유형 분포", x=0.5, font=dict(size=14)),
-        xaxis=dict(title="차시", dtick=1),
+        xaxis=dict(title="", dtick=1, tickfont=dict(size=11)),
         yaxis=dict(title="비율 (%)", range=[0, 100]),
-        height=400,
+        height=420,
         legend=dict(
-            orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5,
-            font=dict(size=11),
+            orientation="h", yanchor="top", y=-0.08, xanchor="center", x=0.5,
+            font=dict(size=10), tracegroupgap=5,
         ),
-        margin=dict(l=60, r=20, t=50, b=80),
+        margin=dict(l=60, r=20, t=50, b=100),
     )
     return fig
 
@@ -448,14 +448,15 @@ def dependency_scatter(heatmap_df: pd.DataFrame, all_students_df: pd.DataFrame =
         font=LAYOUT_DEFAULTS["font"],
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
         title=dict(text=_truncate(title, 35), x=0.5, font=dict(size=14)),
-        xaxis=dict(title="코딩 단계 활동 수 (8-15차시)", gridcolor="#F1F5F9"),
+        xaxis=dict(title="코딩 단계 활동 수 (8-15차시)", gridcolor="#F1F5F9",
+                   title_standoff=10),
         yaxis=dict(title="평균 완료율 (%)", range=[-2, 108], gridcolor="#F1F5F9"),
-        height=500,
+        height=520,
         legend=dict(
-            orientation="h", yanchor="top", y=-0.12, xanchor="center", x=0.5,
-            font=dict(size=11),
+            orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5,
+            font=dict(size=10),
         ),
-        margin=dict(l=60, r=20, t=50, b=80),
+        margin=dict(l=60, r=20, t=50, b=100),
     )
     return fig
 
@@ -532,10 +533,10 @@ def cliff_heatmap(session_df: pd.DataFrame, summary_df: pd.DataFrame,
         font=LAYOUT_DEFAULTS["font"],
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
         title=dict(text=title, x=0.5, font=dict(size=14)),
-        xaxis=dict(title="", side="top", tickfont=dict(size=11)),
-        yaxis=dict(title="", autorange="reversed", tickfont=dict(size=10)),
-        height=max(400, len(labels) * 22 + 120),
-        margin=dict(l=200, r=20, t=60, b=20),
+        xaxis=dict(title="", side="top", tickfont=dict(size=10)),
+        yaxis=dict(title="", autorange="reversed", tickfont=dict(size=9)),
+        height=max(400, len(labels) * 22 + 140),
+        margin=dict(l=200, r=20, t=80, b=20),
     )
     return fig
 
@@ -639,15 +640,15 @@ def trajectory_alignment(session_df: pd.DataFrame, summary_df: pd.DataFrame,
         font=LAYOUT_DEFAULTS["font"],
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
         title=dict(text=title, x=0.5, font=dict(size=14)),
-        xaxis=dict(title="차시", dtick=1, gridcolor="#F1F5F9"),
+        xaxis=dict(title="", dtick=1, gridcolor="#F1F5F9", tickfont=dict(size=11)),
         yaxis=dict(title="기준선 대비 변화 (%p)", gridcolor="#F1F5F9",
                    zeroline=True, zerolinecolor="#94A3B8"),
-        height=500,
+        height=520,
         legend=dict(
-            orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5,
-            font=dict(size=11),
+            orientation="h", yanchor="top", y=-0.08, xanchor="center", x=0.5,
+            font=dict(size=10),
         ),
-        margin=dict(l=60, r=20, t=70, b=90),
+        margin=dict(l=60, r=20, t=70, b=100),
     )
     return fig
 
@@ -702,13 +703,13 @@ def trajectory_sparklines(session_df: pd.DataFrame, summary_df: pd.DataFrame,
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
         title=dict(text=title, x=0.5, font=dict(size=14)),
         barmode="group",
-        xaxis=dict(title="완료율 (%)", range=[0, 105], gridcolor="#F1F5F9"),
-        yaxis=dict(title="", autorange="reversed", tickfont=dict(size=10)),
-        height=max(500, len(classrooms) * 25 + 150),
-        margin=dict(l=200, r=20, t=50, b=60),
+        xaxis=dict(title="", range=[0, 105], gridcolor="#F1F5F9", ticksuffix="%"),
+        yaxis=dict(title="", autorange="reversed", tickfont=dict(size=9)),
+        height=max(500, len(classrooms) * 25 + 180),
+        margin=dict(l=200, r=20, t=50, b=90),
         legend=dict(
-            orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5,
-            font=dict(size=11),
+            orientation="h", yanchor="top", y=-0.06, xanchor="center", x=0.5,
+            font=dict(size=10),
         ),
     )
     return fig
