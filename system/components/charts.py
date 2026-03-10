@@ -1,4 +1,4 @@
-"""CodleViz 시각화 컴포넌트"""
+"""CodleViz 시각화 컴포넌트 (v0.3 — 가독성 개선)"""
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
@@ -10,33 +10,70 @@ COMPETENCY_COLORS = {
     "DI": "#8B5CF6", "CT": "#EF4444",
 }
 COMPETENCY_NAMES = {
-    "DC": "Data Comprehension", "DA": "Data Analysis",
-    "DV": "Data Visualization", "DI": "Data Interpretation",
-    "CT": "Computational Thinking",
+    "DC": "Data\nComprehension", "DA": "Data\nAnalysis",
+    "DV": "Data\nVisualization", "DI": "Data\nInterpretation",
+    "CT": "Computational\nThinking",
+}
+COMPETENCY_NAMES_SHORT = {
+    "DC": "DC", "DA": "DA", "DV": "DV", "DI": "DI", "CT": "CT",
 }
 CURRICULUM_COLORS = {
     "해양쓰레기": "#3B82F6", "기후변화": "#10B981", "식량안보": "#F59E0B",
 }
 LAYOUT_DEFAULTS = dict(
-    font=dict(family="Inter, Pretendard, sans-serif", size=13, color="#1E293B"),
+    font=dict(family="Pretendard, Inter, sans-serif", size=13, color="#1E293B"),
     paper_bgcolor="#FFFFFF",
     plot_bgcolor="#FFFFFF",
     margin=dict(l=60, r=20, t=50, b=40),
 )
 
+# 단계 정보 (공통)
+PHASES = [
+    (1, 3, "#EFF6FF", "이해"),
+    (4, 7, "#ECFDF5", "분석"),
+    (8, 11, "#FEF2F2", "코딩"),
+    (12, 15, "#F5F3FF", "종합"),
+]
+
+
+def _truncate(text: str, max_len: int = 25) -> str:
+    """긴 텍스트 잘라내기"""
+    return text if len(text) <= max_len else text[:max_len-2] + "…"
+
+
+def _add_phase_bg(fig, phases=None, y_pos=1.02):
+    """차트에 단계 배경색 + 상단 라벨 추가 (겹침 방지)"""
+    if phases is None:
+        phases = PHASES
+    for start, end, color, label in phases:
+        fig.add_vrect(
+            x0=start - 0.5, x1=end + 0.5,
+            fillcolor=color, opacity=0.4, layer="below", line_width=0,
+        )
+        # 라벨을 차트 상단 바깥에 배치 (데이터와 겹치지 않음)
+        fig.add_annotation(
+            x=(start + end) / 2, y=y_pos,
+            text=label, showarrow=False,
+            font=dict(size=10, color="#94A3B8"),
+            xref="x", yref="paper",
+        )
+
 
 def competency_radar(df: pd.DataFrame, title: str = "") -> go.Figure:
-    """5역량 레이더 차트 (학급별 평균 역량)"""
+    """5역량 레이더 차트"""
     competencies = ["DC", "DA", "DV", "DI", "CT"]
     values = []
     for c in competencies:
         row = df[df["competency"] == c]
         values.append(row["avg_progress"].values[0] * 100 if len(row) > 0 else 0)
 
+    # 짧은 라벨 사용 (겹침 방지)
+    labels = [f"{c}\n{v:.0f}%" for c, v in zip(competencies, values)]
+
     fig = go.Figure()
     fig.add_trace(go.Scatterpolar(
         r=values + [values[0]],
-        theta=[COMPETENCY_NAMES[c] for c in competencies] + [COMPETENCY_NAMES[competencies[0]]],
+        theta=labels + [labels[0]],
         fill="toself",
         fillcolor="rgba(37, 99, 235, 0.15)",
         line=dict(color="#2563EB", width=2.5),
@@ -46,17 +83,20 @@ def competency_radar(df: pd.DataFrame, title: str = "") -> go.Figure:
     ))
 
     fig.update_layout(
-        font=LAYOUT_DEFAULTS["font"],
+        font=dict(family="Pretendard, Inter, sans-serif", size=12, color="#1E293B"),
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
-        title=dict(text=title, x=0.5, font=dict(size=16)),
+        title=dict(text=_truncate(title, 30), x=0.5, font=dict(size=14)),
         polar=dict(
             radialaxis=dict(visible=True, range=[0, 100], ticksuffix="%",
-                           gridcolor="#F1F5F9", linecolor="#E2E8F0"),
-            angularaxis=dict(gridcolor="#F1F5F9", linecolor="#E2E8F0"),
+                           gridcolor="#F1F5F9", linecolor="#E2E8F0",
+                           tickfont=dict(size=10)),
+            angularaxis=dict(gridcolor="#F1F5F9", linecolor="#E2E8F0",
+                            tickfont=dict(size=11)),
             bgcolor="#FFFFFF",
         ),
         showlegend=False,
-        height=400,
+        height=350,
+        margin=dict(l=60, r=60, t=50, b=40),
     )
     return fig
 
@@ -70,24 +110,14 @@ def session_timeline(df: pd.DataFrame, title: str = "",
         x=df["session"],
         y=df["completion_rate"] * 100,
         mode="lines+markers",
-        name="Completion Rate",
+        name="완료율",
         line=dict(color="#2563EB", width=2.5),
         marker=dict(size=7, color="#2563EB"),
-        hovertemplate="Session %{x}: %{y:.1f}%<extra></extra>",
+        hovertemplate="%{x}차시: %{y:.1f}%<extra></extra>",
     ))
 
-    # 단계별 배경 음영
-    phases = [
-        (1, 3, "#EFF6FF", "Understanding"),
-        (4, 7, "#ECFDF5", "Analysis"),
-        (8, 11, "#FEF2F2", "Coding"),
-        (12, 15, "#F5F3FF", "Synthesis"),
-    ]
-    for start, end, color, label in phases:
-        fig.add_vrect(x0=start - 0.5, x1=end + 0.5,
-                      fillcolor=color, opacity=0.5, layer="below", line_width=0,
-                      annotation_text=label, annotation_position="top left",
-                      annotation_font_size=10, annotation_font_color="#94A3B8")
+    # 단계 배경 (라벨은 차트 상단 바깥)
+    _add_phase_bg(fig)
 
     # ── Cliff Detection ──
     rates = df.sort_values("session")["completion_rate"].values
@@ -96,14 +126,12 @@ def session_timeline(df: pd.DataFrame, title: str = "",
         drop = rates[i] - rates[i - 1]
         if drop < -cliff_threshold:
             severity = abs(drop) * rates[i - 1]
-            # Recovery rate (next 3 sessions)
             if i + 3 < len(rates):
                 recovery = (rates[i + 3] - rates[i]) / (rates[i - 1] - rates[i]) if (rates[i - 1] - rates[i]) > 0 else 0
                 recovery = max(0, min(1, recovery))
             else:
                 recovery = 0
 
-            # Color: green=recovered, red=not recovered
             r_color = f"rgb({int(220 - 180 * recovery)}, {int(50 + 150 * recovery)}, {int(50 + 50 * recovery)})"
             marker_size = max(12, min(25, severity * 50))
 
@@ -117,13 +145,13 @@ def session_timeline(df: pd.DataFrame, title: str = "",
                     color=r_color,
                     line=dict(color="#1E293B", width=1),
                 ),
-                name=f"Cliff S{int(sessions[i])}",
+                name=f"절벽 {int(sessions[i])}차시",
                 hovertemplate=(
-                    f"<b>Coding Cliff Detected</b><br>"
-                    f"Session {int(sessions[i])}<br>"
-                    f"Drop: {drop*100:.1f}%p<br>"
-                    f"Severity: {severity:.2f}<br>"
-                    f"Recovery: {recovery*100:.0f}%"
+                    f"<b>절벽 감지</b><br>"
+                    f"{int(sessions[i])}차시<br>"
+                    f"하락: {drop*100:.1f}%p<br>"
+                    f"심각도: {severity:.2f}<br>"
+                    f"회복률: {recovery*100:.0f}%"
                     f"<extra></extra>"
                 ),
                 showlegend=False,
@@ -132,45 +160,46 @@ def session_timeline(df: pd.DataFrame, title: str = "",
     fig.update_layout(
         font=LAYOUT_DEFAULTS["font"],
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
-        title=dict(text=title, x=0.5, font=dict(size=16)),
-        xaxis=dict(title="Session", dtick=1, gridcolor="#F1F5F9"),
-        yaxis=dict(title="Completion Rate (%)", range=[0, 105], gridcolor="#F1F5F9"),
-        height=350,
+        title=dict(text=_truncate(title, 35), x=0.5, font=dict(size=14)),
+        xaxis=dict(title="차시", dtick=1, gridcolor="#F1F5F9"),
+        yaxis=dict(title="완료율 (%)", range=[0, 110], gridcolor="#F1F5F9"),
+        height=380,
         showlegend=False,
+        margin=dict(l=60, r=20, t=60, b=40),
     )
     return fig
 
 
 def student_heatmap(df: pd.DataFrame, title: str = "") -> go.Figure:
-    """학생×세션 완료 히트맵"""
+    """학생x세션 완료 히트맵"""
     pivot = df.pivot_table(
         index="profile_id", columns="session", values="avg_progress", aggfunc="mean"
     )
     pivot = pivot.sort_values(by=pivot.columns.tolist(), ascending=False)
 
-    # 학생 익명 번호
     student_labels = [f"S{i+1:02d}" for i in range(len(pivot))]
 
     fig = go.Figure(data=go.Heatmap(
         z=pivot.values * 100,
-        x=[f"S{int(c)}" for c in pivot.columns],
+        x=[f"{int(c)}차시" for c in pivot.columns],
         y=student_labels,
         colorscale=[
-            [0, "#FEE2E2"],     # Red-100 (0%)
-            [0.5, "#FEF3C7"],   # Amber-100 (50%)
-            [1, "#D1FAE5"],     # Green-100 (100%)
+            [0, "#FEE2E2"],
+            [0.5, "#FEF3C7"],
+            [1, "#D1FAE5"],
         ],
-        colorbar=dict(title="%", ticksuffix="%"),
-        hovertemplate="Student: %{y}<br>Session: %{x}<br>Progress: %{z:.1f}%<extra></extra>",
+        colorbar=dict(title="%", ticksuffix="%", len=0.8),
+        hovertemplate="%{y} · %{x}: %{z:.1f}%<extra></extra>",
     ))
 
     fig.update_layout(
         font=LAYOUT_DEFAULTS["font"],
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
-        title=dict(text=title, x=0.5, font=dict(size=16)),
-        xaxis=dict(title="Session", side="top"),
-        yaxis=dict(title="Student", autorange="reversed"),
+        title=dict(text=title, x=0.5, font=dict(size=14)),
+        xaxis=dict(title="", side="top", tickfont=dict(size=11)),
+        yaxis=dict(title="", autorange="reversed", tickfont=dict(size=11)),
         height=max(300, len(pivot) * 22 + 100),
+        margin=dict(l=50, r=20, t=60, b=20),
     )
     return fig
 
@@ -179,24 +208,26 @@ def school_comparison_bar(df: pd.DataFrame) -> go.Figure:
     """학교별 평균 진도 수평 막대 그래프"""
     df_sorted = df.sort_values("avg_progress", ascending=True)
     colors = [CURRICULUM_COLORS.get(c, "#94A3B8") for c in df_sorted["curriculum"]]
+    # 라벨 잘라내기
+    labels = [_truncate(name, 28) for name in df_sorted["classroom_name"]]
 
     fig = go.Figure(go.Bar(
         x=df_sorted["avg_progress"] * 100,
-        y=df_sorted["classroom_name"],
+        y=labels,
         orientation="h",
         marker_color=colors,
-        hovertemplate="%{y}<br>Progress: %{x:.1f}%<br>Students: %{customdata[0]}<extra></extra>",
+        hovertemplate="%{y}<br>진도: %{x:.1f}%<br>학생 수: %{customdata[0]}<extra></extra>",
         customdata=df_sorted[["n_students"]].values,
     ))
 
     fig.update_layout(
         font=LAYOUT_DEFAULTS["font"],
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
-        title=dict(text="School Comparison — Average Progress", x=0.5, font=dict(size=16)),
-        xaxis=dict(title="Average Progress (%)", range=[0, 105], gridcolor="#F1F5F9"),
-        yaxis=dict(title=""),
-        height=max(400, len(df_sorted) * 28 + 100),
-        margin=dict(l=250, r=20, t=50, b=40),
+        title=dict(text="학교별 평균 진도율 비교", x=0.5, font=dict(size=14)),
+        xaxis=dict(title="평균 진도율 (%)", range=[0, 105], gridcolor="#F1F5F9"),
+        yaxis=dict(title="", tickfont=dict(size=11)),
+        height=max(400, len(df_sorted) * 26 + 100),
+        margin=dict(l=220, r=20, t=50, b=40),
     )
     return fig
 
@@ -207,19 +238,22 @@ def competency_comparison_grouped(df: pd.DataFrame) -> go.Figure:
     comp_avg = comp_avg.sort_values("competency")
 
     fig = go.Figure(go.Bar(
-        x=[COMPETENCY_NAMES.get(c, c) for c in comp_avg["competency"]],
+        x=comp_avg["competency"],
         y=comp_avg["avg_progress"] * 100,
         marker_color=[COMPETENCY_COLORS.get(c, "#94A3B8") for c in comp_avg["competency"]],
+        text=[f"{v*100:.1f}%" for v in comp_avg["avg_progress"]],
+        textposition="outside",
         hovertemplate="%{x}: %{y:.1f}%<extra></extra>",
     ))
 
     fig.update_layout(
         font=LAYOUT_DEFAULTS["font"],
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
-        title=dict(text="Competency Scores — All Schools Average", x=0.5, font=dict(size=16)),
-        yaxis=dict(title="Average Score (%)", range=[0, 100], gridcolor="#F1F5F9"),
+        title=dict(text="전체 역량 평균 비교", x=0.5, font=dict(size=14)),
+        yaxis=dict(title="평균 점수 (%)", range=[0, 110], gridcolor="#F1F5F9"),
         xaxis=dict(title=""),
-        height=350,
+        height=380,
+        margin=dict(l=60, r=20, t=50, b=40),
     )
     return fig
 
@@ -237,6 +271,17 @@ def activity_type_stacked(df: pd.DataFrame) -> go.Figure:
         "EmbeddedActivity": "#3B82F6",
         "EntryActivity": "#14B8A6",
     }
+    activity_names_kr = {
+        "PdfActivity": "PDF",
+        "VideoActivity": "영상",
+        "StudioActivity": "코딩",
+        "CodapActivity": "CODAP",
+        "BoardActivity": "게시판",
+        "SheetActivity": "시트",
+        "QuizActivity": "퀴즈",
+        "EmbeddedActivity": "임베드",
+        "EntryActivity": "엔트리",
+    }
 
     total_per_session = df.groupby("session")["count"].sum()
 
@@ -251,46 +296,46 @@ def activity_type_stacked(df: pd.DataFrame) -> go.Figure:
             sessions.append(int(s))
             ratios.append((row["count"].sum() / total * 100) if len(row) > 0 else 0)
 
+        display_name = activity_names_kr.get(act_type, act_type.replace("Activity", ""))
         fig.add_trace(go.Scatter(
             x=sessions, y=ratios,
             mode="lines",
-            name=act_type.replace("Activity", ""),
+            name=display_name,
             stackgroup="one",
             line=dict(width=0),
             fillcolor=activity_colors.get(act_type, "#94A3B8"),
-            hovertemplate="%{fullData.name}: %{y:.1f}%<extra></extra>",
+            hovertemplate=f"{display_name}: %{{y:.1f}}%<extra></extra>",
         ))
 
     fig.update_layout(
         font=LAYOUT_DEFAULTS["font"],
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
-        title=dict(text="Activity Type Distribution by Session", x=0.5, font=dict(size=16)),
-        xaxis=dict(title="Session", dtick=1),
-        yaxis=dict(title="Proportion (%)", range=[0, 100]),
+        title=dict(text="차시별 활동 유형 분포", x=0.5, font=dict(size=14)),
+        xaxis=dict(title="차시", dtick=1),
+        yaxis=dict(title="비율 (%)", range=[0, 100]),
         height=400,
-        legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5),
+        legend=dict(
+            orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5,
+            font=dict(size=11),
+        ),
+        margin=dict(l=60, r=20, t=50, b=80),
     )
     return fig
 
 
 # ══════════════════════════════════════════════════════════════
-# Novel Visualization 1: AI Dependency Glyph (Scatter View)
+# Novel Visualization 1: AI Dependency Scatter
 # ══════════════════════════════════════════════════════════════
 
 def dependency_scatter(heatmap_df: pd.DataFrame, all_students_df: pd.DataFrame = None,
-                       title: str = "AI Dependency Analysis") -> go.Figure:
-    """AI 의존도 산점도 — 완료율 × 코딩활동 빈도로 4사분면 분류
-
-    all_students_df가 없으면 heatmap_df의 n_activities를 proxy로 사용
-    """
-    # 학생별 집계
+                       title: str = "AI 의존도 분석") -> go.Figure:
+    """AI 의존도 산점도 — 완료율 x 코딩활동 빈도로 4사분면 분류"""
     student_stats = heatmap_df.groupby("profile_id").agg(
         avg_progress=("avg_progress", "mean"),
         total_activities=("n_activities", "sum"),
         n_sessions=("session", "nunique"),
     ).reset_index()
 
-    # 코딩 단계(8~15차시) 활동 빈도 = AI 활용 proxy
     coding_phase = heatmap_df[heatmap_df["session"] >= 8]
     if len(coding_phase) > 0:
         coding_stats = coding_phase.groupby("profile_id").agg(
@@ -301,7 +346,6 @@ def dependency_scatter(heatmap_df: pd.DataFrame, all_students_df: pd.DataFrame =
     else:
         student_stats["coding_activities"] = 0
 
-    # 초기(1~7) vs 후기(8~15) 활동 비율 = 의존도 추세 proxy
     early = heatmap_df[heatmap_df["session"] <= 7].groupby("profile_id")["n_activities"].mean()
     late = heatmap_df[heatmap_df["session"] > 7].groupby("profile_id")["n_activities"].mean()
     trend = (late - early).reset_index()
@@ -309,7 +353,6 @@ def dependency_scatter(heatmap_df: pd.DataFrame, all_students_df: pd.DataFrame =
     student_stats = student_stats.merge(trend, on="profile_id", how="left")
     student_stats["activity_trend"] = student_stats["activity_trend"].fillna(0)
 
-    # 사분면 분류
     completion_median = student_stats["avg_progress"].median()
     activity_median = student_stats["coding_activities"].median()
 
@@ -317,28 +360,26 @@ def dependency_scatter(heatmap_df: pd.DataFrame, all_students_df: pd.DataFrame =
         high_comp = row["avg_progress"] >= completion_median
         high_act = row["coding_activities"] >= activity_median
         if high_comp and not high_act:
-            return "Independent Learner"
+            return "독립 학습자"
         elif high_comp and high_act:
-            return "AI-Dependent Risk"
+            return "AI 의존 위험"
         elif not high_comp and not high_act:
-            return "Disengaged"
+            return "이탈"
         else:
-            return "Struggling + Seeking Help"
+            return "어려움+도움요청"
 
     student_stats["quadrant"] = student_stats.apply(classify, axis=1)
 
     quadrant_colors = {
-        "Independent Learner": "#10B981",
-        "AI-Dependent Risk": "#EF4444",
-        "Disengaged": "#94A3B8",
-        "Struggling + Seeking Help": "#F59E0B",
+        "독립 학습자": "#10B981",
+        "AI 의존 위험": "#EF4444",
+        "이탈": "#94A3B8",
+        "어려움+도움요청": "#F59E0B",
     }
 
-    # 의존도 추세를 마커 크기로
     trend_abs = student_stats["activity_trend"].abs()
     marker_sizes = 8 + (trend_abs / (trend_abs.max() + 1e-6)) * 20
 
-    # 추세 방향을 마커 심볼로
     symbols = ["triangle-up" if t > 0 else "triangle-down" if t < 0 else "circle"
                for t in student_stats["activity_trend"]]
 
@@ -364,13 +405,13 @@ def dependency_scatter(heatmap_df: pd.DataFrame, all_students_df: pd.DataFrame =
             ),
             hovertemplate=(
                 "<b>%{text}</b><br>"
-                "Completion: %{y:.1f}%<br>"
-                "Coding Activities: %{x}<br>"
-                "Trend: %{customdata[0]:+.1f}<br>"
-                "Quadrant: %{customdata[1]}"
+                "완료율: %{y:.1f}%<br>"
+                "코딩 활동: %{x}<br>"
+                "추세: %{customdata[0]:+.1f}<br>"
+                "분류: %{customdata[1]}"
                 "<extra></extra>"
             ),
-            text=[f"Student {i+1:02d}" for i in range(len(subset))],
+            text=[f"학생 {i+1:02d}" for i in range(len(subset))],
             customdata=list(zip(
                 subset["activity_trend"].round(1).tolist(),
                 subset["quadrant"].tolist(),
@@ -383,25 +424,38 @@ def dependency_scatter(heatmap_df: pd.DataFrame, all_students_df: pd.DataFrame =
     fig.add_vline(x=activity_median, line_dash="dash",
                   line_color="#CBD5E1", line_width=1)
 
-    # 사분면 라벨
-    x_range = student_stats["coding_activities"].max()
-    fig.add_annotation(x=x_range * 0.15, y=95, text="Independent", showarrow=False,
-                       font=dict(color="#10B981", size=11, family="Inter"))
-    fig.add_annotation(x=x_range * 0.85, y=95, text="AI-Dependent", showarrow=False,
-                       font=dict(color="#EF4444", size=11, family="Inter"))
-    fig.add_annotation(x=x_range * 0.15, y=5, text="Disengaged", showarrow=False,
-                       font=dict(color="#94A3B8", size=11, family="Inter"))
-    fig.add_annotation(x=x_range * 0.85, y=5, text="Struggling", showarrow=False,
-                       font=dict(color="#F59E0B", size=11, family="Inter"))
+    # 사분면 라벨 — 반투명 배경으로 겹침 방지
+    x_max = student_stats["coding_activities"].max()
+    x_min = student_stats["coding_activities"].min()
+    x_pad = (x_max - x_min) * 0.05 if x_max > x_min else 5
+
+    annotations = [
+        (x_min + x_pad, 102, "독립 학습자", "#10B981"),
+        (x_max - x_pad, 102, "AI 의존 위험", "#EF4444"),
+        (x_min + x_pad, 3, "이탈", "#94A3B8"),
+        (x_max - x_pad, 3, "어려움+도움요청", "#F59E0B"),
+    ]
+    for ax, ay, atext, acolor in annotations:
+        fig.add_annotation(
+            x=ax, y=ay, text=atext, showarrow=False,
+            font=dict(color=acolor, size=11, family="Pretendard, Inter"),
+            bgcolor="rgba(255,255,255,0.8)",
+            borderpad=3,
+            xanchor="left" if ax < activity_median else "right",
+        )
 
     fig.update_layout(
         font=LAYOUT_DEFAULTS["font"],
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
-        title=dict(text=title, x=0.5, font=dict(size=16)),
-        xaxis=dict(title="Coding Phase Activities (Sessions 8-15)", gridcolor="#F1F5F9"),
-        yaxis=dict(title="Average Completion (%)", range=[0, 105], gridcolor="#F1F5F9"),
+        title=dict(text=_truncate(title, 35), x=0.5, font=dict(size=14)),
+        xaxis=dict(title="코딩 단계 활동 수 (8-15차시)", gridcolor="#F1F5F9"),
+        yaxis=dict(title="평균 완료율 (%)", range=[-2, 108], gridcolor="#F1F5F9"),
         height=500,
-        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+        legend=dict(
+            orientation="h", yanchor="top", y=-0.12, xanchor="center", x=0.5,
+            font=dict(size=11),
+        ),
+        margin=dict(l=60, r=20, t=50, b=80),
     )
     return fig
 
@@ -412,11 +466,8 @@ def dependency_scatter(heatmap_df: pd.DataFrame, all_students_df: pd.DataFrame =
 
 def cliff_heatmap(session_df: pd.DataFrame, summary_df: pd.DataFrame,
                   threshold: float = 0.15,
-                  title: str = "Coding Cliff Detection — All Schools") -> go.Figure:
-    """전체 학교의 절벽 발생 히트맵
-
-    행=학교(커리큘럼별 그룹), 열=세션, 셀=절벽 심각도
-    """
+                  title: str = "전체 학교 절벽 감지") -> go.Figure:
+    """전체 학교의 절벽 발생 히트맵"""
     classrooms = session_df["classroom_name"].unique()
     sessions = sorted(session_df["session"].unique())
 
@@ -424,7 +475,6 @@ def cliff_heatmap(session_df: pd.DataFrame, summary_df: pd.DataFrame,
     labels = []
     curriculum_labels = []
 
-    # 커리큘럼별 정렬
     classroom_curriculum = {}
     for _, row in summary_df.iterrows():
         classroom_curriculum[row["classroom_name"]] = row["curriculum"]
@@ -441,7 +491,6 @@ def cliff_heatmap(session_df: pd.DataFrame, summary_df: pd.DataFrame,
             if s_idx == 0 or s_idx >= len(rates):
                 row_severity.append(0)
                 continue
-
             drop = rates[s_idx] - rates[s_idx - 1]
             if drop < -threshold:
                 severity = abs(drop) * rates[s_idx - 1]
@@ -450,12 +499,11 @@ def cliff_heatmap(session_df: pd.DataFrame, summary_df: pd.DataFrame,
                 row_severity.append(0)
 
         cliff_matrix.append(row_severity)
-        labels.append(classroom)
+        labels.append(_truncate(classroom, 25))
         curriculum_labels.append(classroom_curriculum.get(classroom, ""))
 
     cliff_array = np.array(cliff_matrix)
 
-    # 커리큘럼 구분선 위치
     curr_boundaries = []
     prev_curr = curriculum_labels[0] if curriculum_labels else ""
     for i, c in enumerate(curriculum_labels):
@@ -465,7 +513,7 @@ def cliff_heatmap(session_df: pd.DataFrame, summary_df: pd.DataFrame,
 
     fig = go.Figure(data=go.Heatmap(
         z=cliff_array,
-        x=[f"S{int(s)}" for s in sessions],
+        x=[f"{int(s)}차시" for s in sessions],
         y=labels,
         colorscale=[
             [0, "#FFFFFF"],
@@ -473,27 +521,21 @@ def cliff_heatmap(session_df: pd.DataFrame, summary_df: pd.DataFrame,
             [0.6, "#FBBF24"],
             [1, "#DC2626"],
         ],
-        colorbar=dict(title="Severity"),
-        hovertemplate=(
-            "School: %{y}<br>"
-            "Session: %{x}<br>"
-            "Cliff Severity: %{z:.3f}"
-            "<extra></extra>"
-        ),
+        colorbar=dict(title="심각도", len=0.8),
+        hovertemplate="%{y}<br>%{x}<br>심각도: %{z:.3f}<extra></extra>",
     ))
 
-    # 커리큘럼 구분선
     for b in curr_boundaries:
         fig.add_hline(y=b - 0.5, line_color="#1E293B", line_width=2)
 
     fig.update_layout(
         font=LAYOUT_DEFAULTS["font"],
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
-        title=dict(text=title, x=0.5, font=dict(size=16)),
-        xaxis=dict(title="Session", side="top"),
-        yaxis=dict(title="", autorange="reversed"),
+        title=dict(text=title, x=0.5, font=dict(size=14)),
+        xaxis=dict(title="", side="top", tickfont=dict(size=11)),
+        yaxis=dict(title="", autorange="reversed", tickfont=dict(size=10)),
         height=max(400, len(labels) * 22 + 120),
-        margin=dict(l=280, r=20, t=80, b=40),
+        margin=dict(l=200, r=20, t=60, b=20),
     )
     return fig
 
@@ -503,19 +545,16 @@ def cliff_heatmap(session_df: pd.DataFrame, summary_df: pd.DataFrame,
 # ══════════════════════════════════════════════════════════════
 
 def trajectory_alignment(session_df: pd.DataFrame, summary_df: pd.DataFrame,
-                         title: str = "Trajectory Alignment — Baseline Normalized") -> go.Figure:
+                         title: str = "기준선 정규화 궤적 비교") -> go.Figure:
     """기준선 정규화 궤적 비교 + 커리큘럼별 포락선"""
-
     classrooms = session_df["classroom_name"].unique()
     sessions = sorted(session_df["session"].unique())
 
-    # 커리큘럼 매핑
     classroom_curriculum = {}
     for _, row in summary_df.iterrows():
         classroom_curriculum[row["classroom_name"]] = row["curriculum"]
 
-    # 각 학급의 정규화 궤적 계산
-    trajectories = {}  # curriculum -> list of normalized trajectories
+    trajectories = {}
     for classroom in classrooms:
         cls_data = session_df[session_df["classroom_name"] == classroom].sort_values("session")
         rates = cls_data["completion_rate"].values
@@ -523,9 +562,8 @@ def trajectory_alignment(session_df: pd.DataFrame, summary_df: pd.DataFrame,
         if len(rates) < 2:
             continue
 
-        # 1차시 기준 정규화
         baseline = rates[0]
-        normalized = (rates - baseline) * 100  # %p 단위
+        normalized = (rates - baseline) * 100
 
         curr = classroom_curriculum.get(classroom, "Unknown")
         if curr not in trajectories:
@@ -544,9 +582,8 @@ def trajectory_alignment(session_df: pd.DataFrame, summary_df: pd.DataFrame,
             continue
 
         trajs = trajectories[curr]
-
-        # 포락선 계산 (25~75 백분위)
         all_normalized = np.array([t["normalized"] for t in trajs])
+
         if len(all_normalized) > 1:
             p25 = np.percentile(all_normalized, 25, axis=0)
             p75 = np.percentile(all_normalized, 75, axis=0)
@@ -554,29 +591,30 @@ def trajectory_alignment(session_df: pd.DataFrame, summary_df: pd.DataFrame,
             sess_list = trajs[0]["sessions"].tolist()
 
             # 포락선 (band)
+            hex_color = color.lstrip("#")
+            r, g, b = int(hex_color[:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
+            fill_rgba = f"rgba({r}, {g}, {b}, 0.12)"
+
             fig.add_trace(go.Scatter(
                 x=sess_list + sess_list[::-1],
                 y=p75.tolist() + p25[::-1].tolist(),
                 fill="toself",
-                fillcolor=color.replace(")", ", 0.12)").replace("rgb", "rgba") if "rgb" in color
-                          else f"rgba({int(color[1:3], 16)}, {int(color[3:5], 16)}, {int(color[5:7], 16)}, 0.12)",
+                fillcolor=fill_rgba,
                 line=dict(color="rgba(0,0,0,0)"),
                 name=f"{curr} (25-75%)",
                 showlegend=True,
                 hoverinfo="skip",
             ))
 
-            # 중앙값 라인
             fig.add_trace(go.Scatter(
                 x=sess_list,
                 y=median_traj.tolist(),
                 mode="lines",
-                name=f"{curr} median",
-                line=dict(color=color, width=3, dash="solid"),
-                hovertemplate=f"{curr} median<br>Session %{{x}}: %{{y:+.1f}}%p<extra></extra>",
+                name=f"{curr} 중앙값",
+                line=dict(color=color, width=3),
+                hovertemplate=f"{curr} 중앙값<br>%{{x}}차시: %{{y:+.1f}}%p<extra></extra>",
             ))
 
-        # 개별 학교 라인 (얇게)
         for traj in trajs:
             fig.add_trace(go.Scatter(
                 x=traj["sessions"].tolist(),
@@ -584,53 +622,44 @@ def trajectory_alignment(session_df: pd.DataFrame, summary_df: pd.DataFrame,
                 mode="lines",
                 name=traj["classroom"],
                 line=dict(color=color, width=1, dash="dot"),
-                opacity=0.4,
+                opacity=0.35,
                 showlegend=False,
                 hovertemplate=(
-                    f"<b>{traj['classroom']}</b><br>"
-                    f"Session %{{x}}<br>"
-                    f"Change: %{{y:+.1f}}%p"
+                    f"<b>{_truncate(traj['classroom'], 20)}</b><br>"
+                    f"%{{x}}차시: %{{y:+.1f}}%p"
                     f"<extra></extra>"
                 ),
             ))
 
-    # 기준선 (0)
     fig.add_hline(y=0, line_color="#CBD5E1", line_width=1, line_dash="dash")
 
-    # 단계 구분
-    phases = [
-        (1, 3, "#EFF6FF", "Understanding"),
-        (4, 7, "#ECFDF5", "Analysis"),
-        (8, 11, "#FEF2F2", "Coding"),
-        (12, 15, "#F5F3FF", "Synthesis"),
-    ]
-    for start, end, color_bg, label in phases:
-        fig.add_vrect(x0=start - 0.5, x1=end + 0.5,
-                      fillcolor=color_bg, opacity=0.3, layer="below", line_width=0,
-                      annotation_text=label, annotation_position="top left",
-                      annotation_font_size=9, annotation_font_color="#94A3B8")
+    _add_phase_bg(fig, y_pos=1.03)
 
     fig.update_layout(
         font=LAYOUT_DEFAULTS["font"],
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
-        title=dict(text=title, x=0.5, font=dict(size=16)),
-        xaxis=dict(title="Session", dtick=1, gridcolor="#F1F5F9"),
-        yaxis=dict(title="Change from Baseline (%p)", gridcolor="#F1F5F9",
+        title=dict(text=title, x=0.5, font=dict(size=14)),
+        xaxis=dict(title="차시", dtick=1, gridcolor="#F1F5F9"),
+        yaxis=dict(title="기준선 대비 변화 (%p)", gridcolor="#F1F5F9",
                    zeroline=True, zerolinecolor="#94A3B8"),
         height=500,
-        legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5),
+        legend=dict(
+            orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5,
+            font=dict(size=11),
+        ),
+        margin=dict(l=60, r=20, t=70, b=90),
     )
     return fig
 
 
 def trajectory_sparklines(session_df: pd.DataFrame, summary_df: pd.DataFrame,
-                          title: str = "Phase Performance Summary") -> go.Figure:
+                          title: str = "학교별 단계 성과") -> go.Figure:
     """학교별 4단계 스파크라인 요약"""
     phase_ranges = {
-        "Understanding\n(1-3)": (1, 3),
-        "Analysis\n(4-7)": (4, 7),
-        "Coding\n(8-11)": (8, 11),
-        "Synthesis\n(12-15)": (12, 15),
+        "이해(1-3)": (1, 3),
+        "분석(4-7)": (4, 7),
+        "코딩(8-11)": (8, 11),
+        "종합(12-15)": (12, 15),
     }
     phase_colors = ["#3B82F6", "#10B981", "#EF4444", "#8B5CF6"]
 
@@ -640,6 +669,9 @@ def trajectory_sparklines(session_df: pd.DataFrame, summary_df: pd.DataFrame,
 
     classrooms = sorted(session_df["classroom_name"].unique(),
                         key=lambda c: (classroom_curriculum.get(c, ""), c))
+
+    # 라벨 잘라내기
+    labels = [_truncate(c, 25) for c in classrooms]
 
     phase_data = {phase: [] for phase in phase_ranges}
 
@@ -656,24 +688,27 @@ def trajectory_sparklines(session_df: pd.DataFrame, summary_df: pd.DataFrame,
 
     for i, (phase_name, values) in enumerate(phase_data.items()):
         fig.add_trace(go.Bar(
-            y=classrooms,
+            y=labels,
             x=values,
             orientation="h",
-            name=phase_name.replace("\n", " "),
+            name=phase_name,
             marker_color=phase_colors[i],
             opacity=0.85,
-            hovertemplate="%{y}<br>" + phase_name.replace("\n", " ") + ": %{x:.1f}%<extra></extra>",
+            hovertemplate="%{y}<br>" + phase_name + ": %{x:.1f}%<extra></extra>",
         ))
 
     fig.update_layout(
         font=LAYOUT_DEFAULTS["font"],
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
-        title=dict(text=title, x=0.5, font=dict(size=16)),
+        title=dict(text=title, x=0.5, font=dict(size=14)),
         barmode="group",
-        xaxis=dict(title="Completion Rate (%)", range=[0, 105], gridcolor="#F1F5F9"),
-        yaxis=dict(title="", autorange="reversed"),
+        xaxis=dict(title="완료율 (%)", range=[0, 105], gridcolor="#F1F5F9"),
+        yaxis=dict(title="", autorange="reversed", tickfont=dict(size=10)),
         height=max(500, len(classrooms) * 25 + 150),
-        margin=dict(l=280, r=20, t=60, b=60),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
+        margin=dict(l=200, r=20, t=50, b=60),
+        legend=dict(
+            orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5,
+            font=dict(size=11),
+        ),
     )
     return fig
