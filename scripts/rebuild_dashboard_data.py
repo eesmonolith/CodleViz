@@ -201,6 +201,33 @@ def build_studio_progress(df: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
+def anonymize(df: pd.DataFrame) -> pd.DataFrame:
+    """학교명과 학생 ID를 익명화"""
+    # 학교명 익명화: 고유 학교명 → School_01, School_02, ...
+    unique_schools = sorted(df["school"].unique())
+    school_map = {name: f"School_{i+1:02d}" for i, name in enumerate(unique_schools)}
+    df["school"] = df["school"].map(school_map)
+
+    # classroom_name 익명화: "장기중학교 해양쓰레기" → "School_01 해양쓰레기"
+    def anon_classroom(name):
+        name = str(name)
+        for orig, anon in school_map.items():
+            if orig in name:
+                return name.replace(orig, anon)
+        return name
+
+    df["classroom_name"] = df["classroom_name"].apply(anon_classroom)
+
+    # profile_id 익명화: 순차 ID
+    uid_col = "profile_id" if "profile_id" in df.columns else "user_id"
+    unique_ids = sorted(df[uid_col].unique())
+    id_map = {orig: f"S{i+1:04d}" for i, orig in enumerate(unique_ids)}
+    df[uid_col] = df[uid_col].map(id_map)
+
+    print(f"  익명화 완료: {len(school_map)}개 학교, {len(id_map)}명 학생")
+    return df
+
+
 def main():
     print("=== CodleViz Dashboard 데이터 재생성 ===\n")
     print("원본 데이터 로딩...")
@@ -214,6 +241,9 @@ def main():
         n = len(df[df["curriculum"] == c])
         nc = df[df["curriculum"] == c]["classroom_name"].nunique()
         print(f"    {c}: {n:,}건, {nc}개 학급")
+
+    print("\n익명화 처리...")
+    df = anonymize(df)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
