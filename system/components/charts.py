@@ -145,12 +145,12 @@ def session_timeline(df: pd.DataFrame, title: str = "",
                     color=r_color,
                     line=dict(color="#1E293B", width=1),
                 ),
-                name=f"절벽 {int(sessions[i])}차시",
+                name=f"하락 {int(sessions[i])}차시",
                 hovertemplate=(
-                    f"<b>절벽 감지</b><br>"
+                    f"<b>진도 하락</b><br>"
                     f"{int(sessions[i])}차시<br>"
                     f"하락: {drop*100:.1f}%p<br>"
-                    f"심각도: {severity:.2f}<br>"
+                    f"하락 정도: {severity:.2f}<br>"
                     f"회복률: {recovery*100:.0f}%"
                     f"<extra></extra>"
                 ),
@@ -330,8 +330,8 @@ def activity_type_stacked(df: pd.DataFrame) -> go.Figure:
 # ══════════════════════════════════════════════════════════════
 
 def dependency_scatter(heatmap_df: pd.DataFrame, all_students_df: pd.DataFrame = None,
-                       title: str = "AI 의존도 분석") -> go.Figure:
-    """AI 의존도 산점도 — 완료율 x 코딩활동 빈도로 4사분면 분류"""
+                       title: str = "학습 유형 분류") -> go.Figure:
+    """학습 유형 산점도 — 완료율 x 코딩활동 빈도로 4유형 분류"""
     student_stats = heatmap_df.groupby("profile_id").agg(
         avg_progress=("avg_progress", "mean"),
         total_activities=("n_activities", "sum"),
@@ -362,21 +362,21 @@ def dependency_scatter(heatmap_df: pd.DataFrame, all_students_df: pd.DataFrame =
         high_comp = row["avg_progress"] >= completion_median
         high_act = row["coding_activities"] >= activity_median
         if high_comp and not high_act:
-            return "독립 학습자"
+            return "자기주도 학습"
         elif high_comp and high_act:
-            return "AI 의존 위험"
+            return "과도한 도움 사용"
         elif not high_comp and not high_act:
-            return "이탈"
+            return "참여 부족"
         else:
-            return "어려움+도움요청"
+            return "노력 중"
 
     student_stats["quadrant"] = student_stats.apply(classify, axis=1)
 
     quadrant_colors = {
-        "독립 학습자": "#10B981",
-        "AI 의존 위험": "#EF4444",
-        "이탈": "#94A3B8",
-        "어려움+도움요청": "#F59E0B",
+        "자기주도 학습": "#10B981",
+        "과도한 도움 사용": "#EF4444",
+        "참여 부족": "#94A3B8",
+        "노력 중": "#F59E0B",
     }
 
     trend_abs = student_stats["activity_trend"].abs()
@@ -432,10 +432,10 @@ def dependency_scatter(heatmap_df: pd.DataFrame, all_students_df: pd.DataFrame =
     x_pad = (x_max - x_min) * 0.05 if x_max > x_min else 5
 
     annotations = [
-        (x_min + x_pad, 102, "독립 학습자", "#10B981"),
-        (x_max - x_pad, 102, "AI 의존 위험", "#EF4444"),
-        (x_min + x_pad, 3, "이탈", "#94A3B8"),
-        (x_max - x_pad, 3, "어려움+도움요청", "#F59E0B"),
+        (x_min + x_pad, 102, "자기주도 학습", "#10B981"),
+        (x_max - x_pad, 102, "과도한 도움 사용", "#EF4444"),
+        (x_min + x_pad, 3, "참여 부족", "#94A3B8"),
+        (x_max - x_pad, 3, "노력 중", "#F59E0B"),
     ]
     for ax, ay, atext, acolor in annotations:
         fig.add_annotation(
@@ -469,8 +469,8 @@ def dependency_scatter(heatmap_df: pd.DataFrame, all_students_df: pd.DataFrame =
 
 def cliff_heatmap(session_df: pd.DataFrame, summary_df: pd.DataFrame,
                   threshold: float = 0.15,
-                  title: str = "전체 학교 절벽 감지") -> go.Figure:
-    """전체 학교의 절벽 발생 히트맵"""
+                  title: str = "학교별 진도 하락 현황") -> go.Figure:
+    """전체 학교의 진도 하락 히트맵"""
     classrooms = session_df["classroom_name"].unique()
     sessions = sorted(session_df["session"].unique())
 
@@ -524,8 +524,8 @@ def cliff_heatmap(session_df: pd.DataFrame, summary_df: pd.DataFrame,
             [0.6, "#FBBF24"],
             [1, "#DC2626"],
         ],
-        colorbar=dict(title="심각도", len=0.8),
-        hovertemplate="%{y}<br>%{x}<br>심각도: %{z:.3f}<extra></extra>",
+        colorbar=dict(title="하락 정도", len=0.8),
+        hovertemplate="%{y}<br>%{x}<br>하락 정도: %{z:.3f}<extra></extra>",
     ))
 
     for b in curr_boundaries:
@@ -548,8 +548,8 @@ def cliff_heatmap(session_df: pd.DataFrame, summary_df: pd.DataFrame,
 # ══════════════════════════════════════════════════════════════
 
 def trajectory_alignment(session_df: pd.DataFrame, summary_df: pd.DataFrame,
-                         title: str = "기준선 정규화 궤적 비교") -> go.Figure:
-    """기준선 정규화 궤적 비교 + 커리큘럼별 포락선"""
+                         title: str = "학교별 학습 흐름 비교") -> go.Figure:
+    """학교별 학습 흐름 비교 + 커리큘럼별 범위"""
     classrooms = session_df["classroom_name"].unique()
     sessions = sorted(session_df["session"].unique())
 
@@ -643,7 +643,7 @@ def trajectory_alignment(session_df: pd.DataFrame, summary_df: pd.DataFrame,
         paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
         title=dict(text=title, x=0.5, font=dict(size=14)),
         xaxis=dict(title=dict(text=""), dtick=1, gridcolor="#F1F5F9", tickfont=dict(size=11)),
-        yaxis=dict(title="기준선 대비 변화 (%p)", gridcolor="#F1F5F9",
+        yaxis=dict(title="1차시 대비 변화 (%p)", gridcolor="#F1F5F9",
                    zeroline=True, zerolinecolor="#94A3B8"),
         height=500,
         legend=dict(

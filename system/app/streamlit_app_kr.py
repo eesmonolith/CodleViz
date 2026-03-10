@@ -247,8 +247,8 @@ if view_level == "전체 현황":
         "학교 비교",
         "역량 분석",
         "활동 패턴",
-        "절벽 감지",
-        "궤적 정렬",
+        "진도 하락 탐지",
+        "학습 흐름 비교",
     ])
 
     with tab1:
@@ -304,9 +304,9 @@ if view_level == "전체 현황":
 
     with tab4:
         info_card(
-            "<b>절벽 감지(Cliff Detector)</b>는 완료율이 급격히 하락하는 차시를 자동으로 탐지합니다. "
-            "셀 색상이 진할수록 하락 심각도가 높습니다. "
-            "특정 커리큘럼의 특정 차시에서 공통적으로 절벽이 발생하면, 해당 콘텐츠의 난이도 조정이 필요할 수 있습니다.",
+            "<b>진도 하락 탐지</b>: 학생들의 완료율이 갑자기 떨어지는 차시를 자동으로 찾아줍니다. "
+            "색이 진할수록 많이 떨어진 것입니다. "
+            "여러 학급에서 같은 차시에 하락이 나타나면, 그 차시의 학습 내용이 어렵거나 개선이 필요할 수 있습니다.",
             "warn"
         )
 
@@ -317,14 +317,14 @@ if view_level == "전체 현황":
             )
         ]
 
-        cliff_threshold = st.slider("절벽 감지 임계값 (%p)", 5, 30, 15, 5,
-                                     help="이 값 이상 하락하면 '절벽'으로 감지합니다") / 100
+        cliff_threshold = st.slider("하락 기준 (%p)", 5, 30, 15, 5,
+                                     help="이 값 이상 떨어지면 '하락'으로 표시합니다") / 100
         fig = cliff_heatmap(filtered_session, summary, threshold=cliff_threshold)
-        fig.update_layout(title=dict(text="전체 학교 절벽 감지 히트맵"))
+        fig.update_layout(title=dict(text="학교별 진도 하락 현황"))
         show_chart(fig)
 
-        # 절벽 통계
-        st.markdown("### 절벽 발생 요약")
+        # 하락 통계
+        st.markdown("### 하락 발생 요약")
         cliff_counts = {}
         for classroom in filtered_session["classroom_name"].unique():
             cls_data = filtered_session[
@@ -341,17 +341,17 @@ if view_level == "전체 현황":
             total_cliffs = sum(cliff_counts.values())
             worst_session = max(cliff_counts, key=cliff_counts.get)
             n_classrooms = len(filtered_session['classroom_name'].unique())
-            c1.metric("감지된 총 절벽 수", f"{total_cliffs}건")
-            c2.metric("가장 빈번한 절벽 차시", f"{worst_session}차시")
-            c3.metric(f"{worst_session}차시 영향 학급",
+            c1.metric("하락 발생 횟수", f"{total_cliffs}건")
+            c2.metric("하락이 가장 많은 차시", f"{worst_session}차시")
+            c3.metric(f"{worst_session}차시 해당 학급",
                      f"{cliff_counts[worst_session]}/{n_classrooms}개")
         else:
-            st.success("현재 임계값에서 감지된 절벽이 없습니다.")
+            st.success("현재 기준에서 급격한 하락이 발견되지 않았습니다.")
 
     with tab5:
         info_card(
-            "<b>궤적 정렬 뷰(Trajectory Alignment)</b>는 모든 학교의 학습 궤적을 1차시 기준으로 정규화하여 비교합니다. "
-            "색상 띠는 커리큘럼별 25~75백분위 범위이며, 띠 아래의 학교는 같은 커리큘럼 내에서 상대적으로 저조한 성과를 보입니다.",
+            "<b>학습 흐름 비교</b>: 모든 학교의 진도 변화를 1차시 기준으로 맞춰서 비교합니다. "
+            "색상 띠는 커리큘럼별 평균 범위이며, 띠 아래에 있는 학교는 같은 커리큘럼 내에서 상대적으로 진도가 느린 편입니다.",
             "success"
         )
 
@@ -363,11 +363,11 @@ if view_level == "전체 현황":
         ]
 
         fig = trajectory_alignment(filtered_session, summary)
-        fig.update_layout(title=dict(text="기준선 정규화 궤적 비교"))
+        fig.update_layout(title=dict(text="학교별 학습 흐름 비교"))
         show_chart(fig)
 
         st.markdown("### 단계별 성과 요약")
-        info_card("4개 학습 단계(이해→분석→코딩→종합)별 평균 완료율을 학교별로 비교합니다.")
+        info_card("4개 학습 단계(이해→분석→코딩→종합)별로 학교마다 평균 완료율이 어떻게 다른지 비교합니다.")
         fig2 = trajectory_sparklines(filtered_session, summary)
         fig2.update_layout(title=dict(text="학교별 단계 성과"))
         show_chart(fig2)
@@ -409,8 +409,8 @@ elif view_level == "학교별":
     st.markdown("### 학습 여정 타임라인")
     info_card(
         "15차시 완료율 추이입니다. 배경색은 학습 단계(이해/분석/코딩/종합)를 나타냅니다. "
-        "<b>▼ 삼각형 마커</b>는 완료율이 급격히 하락한 '절벽' 지점입니다. "
-        "빨간색=회복 안 됨, 초록색=이후 회복됨.",
+        "<b>▼ 삼각형 마커</b>는 완료율이 크게 떨어진 구간입니다. "
+        "빨간색=이후에도 회복 안 됨, 초록색=이후 회복됨.",
         "warn"
     )
     for _, row in school_classrooms.iterrows():
@@ -436,10 +436,10 @@ elif view_level == "학급별":
     st.markdown("---")
 
     tab1, tab2, tab3, tab4 = st.tabs([
-        "역량 레이더",
-        "학습 여정",
-        "학생 히트맵",
-        "AI 의존도 분석",
+        "역량 달성도",
+        "차시별 진도",
+        "학생별 현황",
+        "학습 유형 분류",
     ])
 
     with tab1:
@@ -464,7 +464,7 @@ elif view_level == "학급별":
     with tab2:
         info_card(
             "15차시에 걸친 학습 진행 추이입니다. "
-            "▼ 마커는 급격한 하락(절벽)을 나타냅니다.",
+            "▼ 마커는 완료율이 크게 떨어진 구간입니다.",
         )
         sess_data = get_session_for_classroom(selected_classroom)
         fig = session_timeline(sess_data, title="15차시 학습 여정")
@@ -487,18 +487,18 @@ elif view_level == "학급별":
 
     with tab4:
         info_card(
-            "<b>AI 의존도 분석</b>은 학생을 완료율과 코딩 활동 빈도 기준으로 4개 그룹으로 분류합니다.<br>"
-            "• <b style='color:#10B981'>독립 학습자</b>: 높은 완료율 + 적은 활동 → 스스로 학습<br>"
-            "• <b style='color:#EF4444'>AI 의존 위험</b>: 높은 완료율 + 많은 활동 → AI에 과도하게 의존 가능성<br>"
-            "• <b style='color:#94A3B8'>이탈</b>: 낮은 완료율 + 적은 활동 → 학습 참여 저조<br>"
-            "• <b style='color:#F59E0B'>어려움+도움 요청</b>: 낮은 완료율 + 많은 활동 → 노력하지만 어려움<br>"
-            "마커 모양: ▲=활동 증가 추세, ▼=활동 감소 추세",
+            "<b>학습 유형 분류</b>: 완료율과 코딩 활동량을 기준으로 학생을 4개 유형으로 나눕니다.<br>"
+            "• <b style='color:#10B981'>자기주도 학습</b>: 완료율 높음 + 활동 적음 → 스스로 잘 해냄<br>"
+            "• <b style='color:#EF4444'>과도한 도움 사용</b>: 완료율 높음 + 활동 많음 → AI 도움에 많이 의존<br>"
+            "• <b style='color:#94A3B8'>참여 부족</b>: 완료율 낮음 + 활동 적음 → 학습에 잘 참여하지 않음<br>"
+            "• <b style='color:#F59E0B'>노력 중</b>: 완료율 낮음 + 활동 많음 → 열심히 하지만 어려움을 겪는 중<br>"
+            "마커 모양: ▲=활동이 점점 늘어남, ▼=활동이 점점 줄어듦",
             "warn"
         )
 
         heat_data = get_heatmap_for_classroom(selected_classroom)
         if len(heat_data) > 0:
-            fig = dependency_scatter(heat_data, title=f"AI 의존도 — {selected_classroom}")
+            fig = dependency_scatter(heat_data, title=f"학습 유형 분류 — {selected_classroom}")
             show_chart(fig)
 
             # 사분면 통계
@@ -520,10 +520,10 @@ elif view_level == "학급별":
             act_med = student_stats["coding_activities"].median()
 
             q_counts = {
-                "독립 학습자": len(student_stats[(student_stats["avg_progress"] >= comp_med) & (student_stats["coding_activities"] < act_med)]),
-                "AI 의존 위험": len(student_stats[(student_stats["avg_progress"] >= comp_med) & (student_stats["coding_activities"] >= act_med)]),
-                "이탈": len(student_stats[(student_stats["avg_progress"] < comp_med) & (student_stats["coding_activities"] < act_med)]),
-                "어려움+도움요청": len(student_stats[(student_stats["avg_progress"] < comp_med) & (student_stats["coding_activities"] >= act_med)]),
+                "자기주도 학습": len(student_stats[(student_stats["avg_progress"] >= comp_med) & (student_stats["coding_activities"] < act_med)]),
+                "과도한 도움 사용": len(student_stats[(student_stats["avg_progress"] >= comp_med) & (student_stats["coding_activities"] >= act_med)]),
+                "참여 부족": len(student_stats[(student_stats["avg_progress"] < comp_med) & (student_stats["coding_activities"] < act_med)]),
+                "노력 중": len(student_stats[(student_stats["avg_progress"] < comp_med) & (student_stats["coding_activities"] >= act_med)]),
             }
             q_colors = ["#10B981", "#EF4444", "#94A3B8", "#F59E0B"]
             cols = st.columns(4)
