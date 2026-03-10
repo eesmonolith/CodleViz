@@ -10,9 +10,9 @@ COMPETENCY_COLORS = {
     "DI": "#8B5CF6", "CT": "#EF4444",
 }
 COMPETENCY_NAMES = {
-    "DC": "Data\nComprehension", "DA": "Data\nAnalysis",
-    "DV": "Data\nVisualization", "DI": "Data\nInterpretation",
-    "CT": "Computational\nThinking",
+    "DC": "데이터\n이해", "DA": "데이터\n분석",
+    "DV": "데이터\n시각화", "DI": "데이터\n해석",
+    "CT": "컴퓨팅\n사고",
 }
 COMPETENCY_NAMES_SHORT = {
     "DC": "DC", "DA": "DA", "DV": "DV", "DI": "DI", "CT": "CT",
@@ -78,7 +78,7 @@ def competency_radar(df: pd.DataFrame, title: str = "") -> go.Figure:
         fillcolor="rgba(37, 99, 235, 0.15)",
         line=dict(color="#2563EB", width=2.5),
         marker=dict(size=8, color="#2563EB"),
-        name="Competency Score",
+        name="역량 점수",
         hovertemplate="%{theta}: %{r:.1f}%<extra></extra>",
     ))
 
