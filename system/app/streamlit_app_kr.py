@@ -217,7 +217,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown(
         "<div style='text-align:center; opacity:0.6; font-size:0.75rem;'>"
-        "48개 학급 · 614명 학생 · 3개 커리큘럼<br>"
+        "49개 학급 · 709명 학생 · 3개 커리큘럼<br>"
         "CodleViz v0.3 · HPIC Lab, 고려대학교"
         "</div>",
         unsafe_allow_html=True

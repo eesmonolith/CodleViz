@@ -1,17 +1,18 @@
 """
 CodleViz dashboard 데이터 재생성 스크립트
-원본: /data/Query.2026.*.csv → CodleViz/data/dashboard/
+원본: MM/class csv/*.csv → CodleViz/data/dashboard/
 3개 커리큘럼 포함: 해양쓰레기, 기후변화, 식량안보
 """
 from __future__ import annotations
 
 import pandas as pd
 import numpy as np
+import os
 import re
 from pathlib import Path
 from typing import Optional
 
-RAW_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+RAW_DIR = Path(__file__).resolve().parent.parent.parent / "MM" / "class csv"
 OUT_DIR = Path(__file__).resolve().parent.parent / "data" / "dashboard"
 
 CURRICULA = ["해양쓰레기", "기후변화", "식량안보"]
@@ -39,13 +40,13 @@ def extract_session(material_name: str) -> int | None:
 
 
 def load_raw_data() -> pd.DataFrame:
-    """원본 CSV 전부 합쳐서 3개 커리큘럼 학생 데이터 반환"""
+    """MM/class csv/ 의 모든 CSV를 합쳐서 3개 커리큘럼 학생 데이터 반환"""
     dfs = []
-    for f in sorted(RAW_DIR.glob("Query.2026.*.csv")):
+    for f in sorted(RAW_DIR.glob("*.csv")):
         print(f"  읽는 중: {f.name}")
         dfs.append(pd.read_csv(f, low_memory=False))
     all_df = pd.concat(dfs, ignore_index=True)
-    print(f"  전체 이벤트: {len(all_df):,}건")
+    print(f"  전체 행: {len(all_df):,}건")
 
     # 3개 커리큘럼 필터
     mask = all_df["classroom_name"].str.contains(CURRICULA_PATTERN, na=False)
@@ -69,15 +70,6 @@ def load_raw_data() -> pd.DataFrame:
 
     df["session"] = df["material_name"].apply(extract_session)
     df["competency"] = df["session"].map(COMPETENCY_MAP)
-
-    # progress 컬럼 확인
-    if "progress" not in df.columns:
-        # score/max_score 에서 계산
-        if "score" in df.columns and "max_score" in df.columns:
-            df["progress"] = df["score"] / df["max_score"].replace(0, np.nan)
-            df["progress"] = df["progress"].fillna(0)
-        else:
-            df["progress"] = 0
 
     return df
 
