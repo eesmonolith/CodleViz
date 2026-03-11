@@ -297,9 +297,9 @@ def curriculum_badges():
 
 
 # ── XAI: 캐시된 모델 학습 ──
-@st.cache_resource(show_spinner="XAI 진도 하락 예측 모델 학습 중...")
+@st.cache_resource(show_spinner="AI가 진도 하락 원인을 분석하고 있습니다...")
 def _train_xai_model(threshold: float):
-    """XGBoost + SHAP 모델을 학습하고 캐시합니다."""
+    """진도 하락 원인 분석 AI 모델을 학습하고 캐시합니다."""
     all_students = load_all_students()
     session_prog = load_session_progress()
     heatmap = load_student_heatmap()
@@ -348,8 +348,8 @@ with st.sidebar:
     with st.expander("표시 설정", expanded=False):
         show_feedback = st.checkbox("실행 방안 피드백 표시", value=True,
                                      help="DR6: 시각화 옆에 실행 가능한 교수 전략을 표시합니다")
-        show_xai = st.checkbox("XAI 설명 표시", value=True,
-                                help="SHAP 기반 설명 가능 AI 분석을 표시합니다")
+        show_xai = st.checkbox("AI 원인 분석 표시", value=True,
+                                help="진도 하락이 발생한 원인을 AI가 자동으로 분석해서 보여줍니다")
         show_text_summary = st.checkbox("텍스트 요약 표시", value=True,
                                          help="차트와 함께 핵심 수치를 텍스트로 요약합니다")
         display_density = st.radio("정보 밀도", ["기본", "상세"],
@@ -564,41 +564,41 @@ if view_level == "전체 현황":
             # ══════════════════════════════════════════
             if show_xai and HAS_XAI:
                 st.markdown("---")
-                st.markdown("### XAI: 왜 진도가 떨어졌을까?")
+                st.markdown("### AI 분석: 왜 진도가 떨어졌을까?")
                 xai_card(
-                    "<b>설명 가능 AI 분석</b>: XGBoost 모델이 19개 특성(활동 유형 구성, 이전 성취도, 학생 간 편차 등)으로 "
-                    "진도 하락 이벤트를 예측하고, SHAP 값을 통해 각 하락의 주요 원인을 분석합니다. "
-                    "<b style='color:#EF4444'>빨간 막대</b> = 하락 위험 증가, "
-                    "<b style='color:#10B981'>초록 막대</b> = 하락 위험 감소."
+                    "<b>AI 원인 분석</b>: AI가 활동 유형, 이전 차시 성취도, 학생 간 편차 등 "
+                    "19가지 요인을 종합 분석하여 진도 하락의 원인을 자동으로 찾아줍니다. "
+                    "<b style='color:#EF4444'>빨간 막대</b> = 하락을 일으킨 원인, "
+                    "<b style='color:#10B981'>초록 막대</b> = 하락을 막아준 요인."
                 )
 
                 # 모델 학습 (캐시)
                 xai_result = _train_xai_model(cliff_threshold)
 
                 if "error" not in xai_result:
-                    # 모델 성능
+                    # 분석 신뢰도
                     model_info = get_model_summary(xai_result)
                     mc1, mc2, mc3, mc4 = st.columns(4)
-                    mc1.metric("모델 정확도", f"{model_info['accuracy']:.1%}")
-                    mc2.metric("AUC-ROC", f"{model_info['auc']:.3f}")
-                    mc3.metric("하락 이벤트 수", f"{model_info['n_cliffs']}건")
-                    mc4.metric("사용 특성 수", f"{model_info['n_features']}개")
+                    mc1.metric("분석 정확도", f"{model_info['accuracy']:.1%}")
+                    mc2.metric("분석 신뢰도", f"{model_info['auc']:.1%}")
+                    mc3.metric("분석된 하락 건수", f"{model_info['n_cliffs']}건")
+                    mc4.metric("분석 요인 수", f"{model_info['n_features']}개")
 
-                    # 전역 특성 중요도
-                    st.markdown("#### 전역 특성 중요도")
+                    # 하락에 영향을 주는 주요 요인
+                    st.markdown("#### 진도 하락에 가장 큰 영향을 주는 요인")
                     info_card(
-                        "모든 학급에서 진도 하락에 가장 큰 영향을 미치는 요인은 무엇일까요? "
-                        "값이 클수록 예측 모델에 대한 영향력이 큽니다."
+                        "전체 학급 데이터를 분석한 결과, 아래 요인들이 진도 하락과 가장 관련이 깊습니다. "
+                        "막대가 길수록 하락 여부에 큰 영향을 미치는 요인입니다."
                     )
                     global_imp = get_global_importance(xai_result, lang="kr", top_k=10)
                     fig_global = shap_global_importance(global_imp, lang="kr")
                     show_chart(fig_global)
 
                     # 개별 학급 하락 설명
-                    st.markdown("#### 특정 하락 원인 분석")
+                    st.markdown("#### 학급별 하락 원인 상세 보기")
                     info_card(
-                        "학급을 선택하여 가장 심한 하락의 SHAP 설명을 확인하세요. "
-                        "<b>왜 이 학급의 완료율이 떨어졌는지</b> 구체적인 원인을 알 수 있습니다."
+                        "아래에서 학급을 선택하면, AI가 해당 학급의 진도 하락이 <b>왜 발생했는지</b> "
+                        "구체적인 원인을 분석해서 보여줍니다."
                     )
 
                     # 하락이 있는 학급 찾기
@@ -614,7 +614,7 @@ if view_level == "전체 현황":
                             cliff_options.append((label, row["classroom_name"], row["session"]))
 
                         selected_cliff_label = st.selectbox(
-                            "하락 이벤트 선택",
+                            "분석할 학급·차시 선택",
                             [o[0] for o in cliff_options],
                         )
                         selected_idx = [o[0] for o in cliff_options].index(selected_cliff_label)
@@ -638,19 +638,28 @@ if view_level == "전체 현황":
                                 show_chart(fig_shap)
 
                             with col_right:
-                                st.markdown("##### 주요 요인")
+                                st.markdown("##### 주요 원인 요약")
                                 for exp in sorted(explanation, key=lambda e: abs(e["shap_value"]), reverse=True):
-                                    direction = "위험" if exp["shap_value"] > 0 else "보호"
-                                    icon = "🔴" if direction == "위험" else "🟢"
+                                    is_risk = exp["shap_value"] > 0
+                                    icon = "🔴" if is_risk else "🟢"
                                     val = exp["value"]
                                     if isinstance(val, float) and val < 1.5:
-                                        val_str = f"{val:.2%}"
+                                        val_str = f"{val:.0%}"
                                     else:
                                         val_str = f"{val:.1f}" if isinstance(val, float) else str(val)
+                                    impact = abs(exp["shap_value"])
+                                    if impact > 1.0:
+                                        strength = "매우 큰 영향"
+                                    elif impact > 0.3:
+                                        strength = "큰 영향"
+                                    elif impact > 0.1:
+                                        strength = "보통 영향"
+                                    else:
+                                        strength = "약한 영향"
+                                    label = "하락 원인" if is_risk else "하락 방지 요인"
                                     st.markdown(
-                                        f"{icon} **{exp['feature']}** = {val_str}  \n"
-                                        f"&nbsp;&nbsp;&nbsp;&nbsp;SHAP: `{exp['shap_value']:+.3f}` — "
-                                        f"{'하락 위험 증가' if direction == '위험' else '하락 위험 감소'}"
+                                        f"{icon} **{exp['feature']}** ({val_str})  \n"
+                                        f"&nbsp;&nbsp;&nbsp;&nbsp;→ {label} ({strength})"
                                     )
 
                             # XAI 기반 실행 방안 피드백
@@ -694,15 +703,15 @@ if view_level == "전체 현황":
                                                 f"{rf['feature']} (값: {rf['value']:.2f})이(가) 하락 위험에 기여"
                                             )
                                     action_card(
-                                        f"XAI 기반 교수 전략 — {sel_classroom}",
+                                        f"AI가 추천하는 교수 전략 — {sel_classroom}",
                                         xai_suggestions
                                     )
                     else:
                         st.info("현재 기준에서 하락 이벤트가 발견되지 않았습니다.")
                 else:
-                    st.warning(f"XAI 모델 학습 불가: {xai_result['error']}")
+                    st.warning(f"AI 원인 분석을 수행할 수 없습니다: {xai_result['error']}")
             elif show_xai and not HAS_XAI:
-                st.warning("XAI 기능을 사용하려면 `xgboost`와 `shap` 패키지가 필요합니다. 설치: `pip install xgboost shap`")
+                st.warning("AI 원인 분석 기능을 사용하려면 추가 패키지 설치가 필요합니다. 관리자에게 문의하세요.")
         else:
             st.success("현재 기준에서 급격한 하락이 발견되지 않았습니다.")
 
@@ -852,7 +861,7 @@ elif view_level == "학급별":
                     break
 
             if has_cliff:
-                st.markdown("#### XAI: 이 학급의 하락 원인 분석")
+                st.markdown("#### AI 분석: 이 학급의 하락 원인")
                 xai_result = _train_xai_model(0.15)
                 if "error" not in xai_result:
                     # 이 학급에서 가장 심한 하락 찾기
@@ -871,9 +880,9 @@ elif view_level == "학급별":
                         )
                         if explanation:
                             xai_card(
-                                f"<b>{int(worst['session'])}차시</b>: "
+                                f"<b>{int(worst['session'])}차시</b>에서 "
                                 f"완료율이 <b>{worst['drop']*100:.1f}%p</b> 하락했습니다. "
-                                f"XAI 모델이 다음과 같은 원인 요인을 식별했습니다:"
+                                f"AI가 분석한 주요 원인은 다음과 같습니다:"
                             )
                             fig_shap = shap_waterfall(
                                 explanation,
