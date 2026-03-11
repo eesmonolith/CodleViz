@@ -46,6 +46,13 @@ def _cur_en(name):
     """Translate curriculum name to English"""
     return CURRICULUM_NAMES_EN.get(name, name)
 
+def _name_en(name):
+    """Translate classroom/school display name to English"""
+    result = name
+    for kr, en in CURRICULUM_NAMES_EN.items():
+        result = result.replace(kr, en)
+    return result
+
 # ── Page Config ──
 st.set_page_config(
     page_title="CodleViz — Learning Analytics Dashboard",
@@ -315,13 +322,13 @@ with st.sidebar:
     if view_level in ["School", "Classroom", "Student"]:
         filtered = summary[summary["curriculum"].isin(selected_curricula)]
         schools = sorted(filtered["school"].unique())
-        selected_school = st.selectbox("Select School", schools)
+        selected_school = st.selectbox("Select School", schools, format_func=_name_en)
 
         if view_level in ["Classroom", "Student"]:
             classrooms = sorted(
                 filtered[filtered["school"] == selected_school]["classroom_name"].tolist()
             )
-            selected_classroom = st.selectbox("Select Classroom", classrooms)
+            selected_classroom = st.selectbox("Select Classroom", classrooms, format_func=_name_en)
 
     # ── DR7: Display Settings ──
     st.markdown("---")
@@ -385,8 +392,8 @@ if view_level == "Overview":
             avg_all = filtered_summary["avg_progress"].mean() * 100
             info_card(
                 f"<b>Summary</b>: Overall average progress <b>{avg_all:.1f}%</b> | "
-                f"Highest: {top3.iloc[0]['classroom_name']} ({top3.iloc[0]['avg_progress']*100:.1f}%) | "
-                f"Lowest: {bot3.iloc[0]['classroom_name']} ({bot3.iloc[0]['avg_progress']*100:.1f}%)"
+                f"Highest: {_name_en(top3.iloc[0]['classroom_name'])} ({top3.iloc[0]['avg_progress']*100:.1f}%) | "
+                f"Lowest: {_name_en(bot3.iloc[0]['classroom_name'])} ({bot3.iloc[0]['avg_progress']*100:.1f}%)"
             )
         if show_feedback:
             low_progress = filtered_summary[filtered_summary["avg_progress"] < 0.3]
@@ -569,7 +576,7 @@ if view_level == "Overview":
 # School Level
 # ══════════════════════════════════════════════════════
 elif view_level == "School":
-    st.title(f"{selected_school}")
+    st.title(f"{_name_en(selected_school)}")
 
     school_classrooms = summary[
         (summary["school"] == selected_school) &
@@ -592,7 +599,7 @@ elif view_level == "School":
     for i, (_, row) in enumerate(school_classrooms.iterrows()):
         comp_data = get_competency_for_classroom(row["classroom_name"])
         with cols[i % len(cols)]:
-            fig = competency_radar(comp_data, title=row["classroom_name"])
+            fig = competency_radar(comp_data, title=_name_en(row["classroom_name"]))
             show_chart(fig)
 
     st.markdown("---")
@@ -602,7 +609,7 @@ elif view_level == "School":
         avg_progress = school_classrooms['avg_progress'].mean()
         if avg_progress < 0.4:
             action_card(
-                f"{selected_school} overall progress {avg_progress*100:.1f}% — Improvement needed",
+                f"{_name_en(selected_school)} overall progress {avg_progress*100:.1f}% — Improvement needed",
                 [
                     "Discuss supplementary learning time allocation at school level",
                     "Propose cross-teacher lesson sharing workshops",
@@ -621,7 +628,7 @@ elif view_level == "School":
     for _, row in school_classrooms.iterrows():
         sess_data = get_session_for_classroom(row["classroom_name"])
         if len(sess_data) > 0:
-            fig = session_timeline(sess_data, title=row["classroom_name"])
+            fig = session_timeline(sess_data, title=_name_en(row["classroom_name"]))
             show_chart(fig)
 
 
@@ -629,7 +636,7 @@ elif view_level == "School":
 # Classroom Level
 # ══════════════════════════════════════════════════════
 elif view_level == "Classroom":
-    st.title(f"{selected_classroom}")
+    st.title(f"{_name_en(selected_classroom)}")
 
     classroom_info = summary[summary["classroom_name"] == selected_classroom].iloc[0]
     c1, c2, c3, c4 = st.columns(4)
@@ -723,7 +730,7 @@ elif view_level == "Classroom":
 
         heat_data = get_heatmap_for_classroom(selected_classroom)
         if len(heat_data) > 0:
-            fig = dependency_scatter(heat_data, title=f"Learning Type Classification — {selected_classroom}")
+            fig = dependency_scatter(heat_data, title=f"Learning Type Classification — {_name_en(selected_classroom)}")
             show_chart(fig)
 
             # Quadrant statistics
@@ -758,7 +765,7 @@ elif view_level == "Classroom":
             if show_feedback:
                 fb_suggestions = generate_quadrant_feedback(q_counts)
                 if fb_suggestions:
-                    action_card(f"{selected_classroom} — Teaching Strategies by Type", fb_suggestions)
+                    action_card(f"{_name_en(selected_classroom)} — Teaching Strategies by Type", fb_suggestions)
         else:
             st.info("No student data available for this classroom.")
 
@@ -778,7 +785,7 @@ elif view_level == "Student":
 
         student_idx = students.index(selected_student) + 1
         st.title(f"Student {student_idx:02d}")
-        st.caption(f"{selected_classroom}")
+        st.caption(f"{_name_en(selected_classroom)}")
 
         student_data = heat_data[heat_data["profile_id"] == selected_student]
 
