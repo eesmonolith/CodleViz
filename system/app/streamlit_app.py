@@ -36,6 +36,16 @@ COMPETENCY_NAMES_EN = {
     "CT": "Computational Thinking",
 }
 
+CURRICULUM_NAMES_EN = {
+    "해양쓰레기": "Marine Debris",
+    "기후변화": "Climate Change",
+    "식량안보": "Food Security",
+}
+
+def _cur_en(name):
+    """Translate curriculum name to English"""
+    return CURRICULUM_NAMES_EN.get(name, name)
+
 # ── Page Config ──
 st.set_page_config(
     page_title="CodleViz — Learning Analytics Dashboard",
@@ -298,6 +308,7 @@ with st.sidebar:
     curricula = sorted(summary["curriculum"].unique())
     selected_curricula = st.multiselect(
         "Curriculum Filter", curricula, default=curricula,
+        format_func=_cur_en,
         help="Select curricula to analyze"
     )
 
@@ -461,7 +472,7 @@ if view_level == "Overview":
             curr_data = act_df[act_df["curriculum"] == curr]
             if len(curr_data) > 0:
                 fig = activity_type_stacked(curr_data)
-                fig.update_layout(title=dict(text=f"Activity Type Distribution — {curr}"))
+                fig.update_layout(title=dict(text=f"Activity Type Distribution — {_cur_en(curr)}"))
                 show_chart(fig)
 
     with tab4:
