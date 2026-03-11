@@ -218,7 +218,7 @@ def ethics_notice():
         '<div class="ethics-card">'
         '본 대시보드의 모든 데이터는 익명화 처리되었습니다. '
         '학교명은 School_01~School_46, 학생 ID는 S0001~S0709로 변환되어 개인 식별이 불가합니다. '
-        '데이터는 교수·학습 개선 목적으로만 활용되며, IRB 승인 하에 수집되었습니다.'
+        '데이터는 교수·학습 개선 목적으로만 활용됩니다.'
         '</div>',
         unsafe_allow_html=True,
     )
