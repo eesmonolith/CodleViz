@@ -1,6 +1,6 @@
 """
 CodleViz — Visual Analytics for K-12 Data Science Education
-English Version (v0.4) — DR6/DR7/DR8
+English Version (v0.5) — DR6/DR7/DR8 + XAI (SHAP-based Cliff Explanation)
 """
 import sys
 from pathlib import Path
@@ -14,6 +14,7 @@ import plotly.graph_objects as go
 from system.utils.data_loader import (
     load_school_summary, load_competency_scores, load_session_progress,
     load_student_heatmap, load_activity_types, load_studio_progress,
+    load_all_students,
     get_school_list, get_classroom_list, get_school_stats,
     get_competency_for_classroom, get_session_for_classroom,
     get_heatmap_for_classroom, COMPETENCY_COLORS, COMPETENCY_NAMES_KR,
@@ -25,6 +26,11 @@ from system.components.charts import (
     activity_type_stacked,
     dependency_scatter, cliff_heatmap, trajectory_alignment,
     trajectory_sparklines,
+    shap_waterfall, shap_global_importance,
+)
+from system.components.xai_engine import (
+    HAS_XAI, extract_cliff_features, train_cliff_model,
+    get_cliff_explanation, get_global_importance, get_model_summary,
 )
 
 # Competency English names
@@ -66,7 +72,7 @@ def _translate_df(df):
 
 # ── Page Config ──
 st.set_page_config(
-    page_title="CodleViz — Learning Analytics Dashboard",
+    page_title="CodleViz — Learning Analytics Dashboard (XAI)",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -194,6 +200,20 @@ st.markdown("""
     .action-card ul { margin: 6px 0 2px 0; padding-left: 18px; }
     .action-card li { margin-bottom: 3px; }
 
+    /* XAI Card */
+    .xai-card {
+        background: linear-gradient(135deg, #FDF4FF 0%, #FAF5FF 100%);
+        border: 1px solid #E9D5FF;
+        border-left: 4px solid #8B5CF6;
+        padding: 14px 18px;
+        border-radius: 0 10px 10px 0;
+        margin: 10px 0;
+        font-size: 0.88rem;
+        color: #3B0764;
+        line-height: 1.6;
+    }
+    .xai-card b { color: #6D28D9; }
+
     /* Ethics Notice (DR8) */
     .ethics-card {
         background: #F8FAFC;
@@ -221,6 +241,7 @@ st.markdown("""
     .badge-blue { background: #DBEAFE; color: #1E40AF; }
     .badge-green { background: #D1FAE5; color: #065F46; }
     .badge-amber { background: #FEF3C7; color: #92400E; }
+    .badge-purple { background: #EDE9FE; color: #5B21B6; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -246,6 +267,11 @@ def action_card(title, suggestions):
         f'</div>',
         unsafe_allow_html=True,
     )
+
+
+def xai_card(text):
+    """XAI explanation card"""
+    st.markdown(f'<div class="xai-card">{text}</div>', unsafe_allow_html=True)
 
 
 def ethics_notice():
@@ -307,10 +333,24 @@ def curriculum_badges():
     )
 
 
+# ── XAI: Cached model training ──
+@st.cache_resource(show_spinner="Training XAI cliff prediction model...")
+def _train_xai_model(threshold: float):
+    """Train XGBoost + SHAP once, cache result."""
+    all_students = load_all_students()
+    session_prog = load_session_progress()
+    heatmap = load_student_heatmap()
+
+    features = extract_cliff_features(all_students, session_prog, heatmap)
+    result = train_cliff_model(features, threshold=threshold)
+    return result
+
+
 # ── Sidebar ──
 with st.sidebar:
     st.markdown("## CodleViz")
     st.caption("K-12 AI & Data Literacy Learning Analytics")
+    st.markdown('<span class="badge badge-purple">XAI v0.5</span>', unsafe_allow_html=True)
     st.markdown("---")
 
     view_level = st.radio(
@@ -346,6 +386,8 @@ with st.sidebar:
     with st.expander("Display Settings", expanded=False):
         show_feedback = st.checkbox("Show Actionable Feedback", value=True,
                                      help="DR6: Display actionable teaching strategies alongside visualizations")
+        show_xai = st.checkbox("Show XAI Explanations", value=True,
+                                help="Show SHAP-based explainable AI analysis for progress drops")
         show_text_summary = st.checkbox("Show Text Summaries", value=True,
                                          help="Display key statistics as text alongside charts")
         display_density = st.radio("Information Density", ["Standard", "Detailed"],
@@ -356,7 +398,7 @@ with st.sidebar:
     st.markdown(
         "<div style='text-align:center; opacity:0.6; font-size:0.75rem; margin-top:8px;'>"
         "49 classrooms · 709 students · 3 curricula<br>"
-        "CodleViz v0.4 · HPIC Lab, Korea University"
+        "CodleViz v0.5 (XAI) · HPIC Lab, Korea University"
         "</div>",
         unsafe_allow_html=True
     )
@@ -554,6 +596,154 @@ if view_level == "Overview":
                 )
                 cliff_df["Ratio"] = (cliff_df["Classrooms Affected"] / n_classrooms * 100).round(1).astype(str) + "%"
                 st.dataframe(cliff_df, hide_index=True, use_container_width=True)
+
+            # ══════════════════════════════════════════
+            # XAI: SHAP-based Cliff Explanation
+            # ══════════════════════════════════════════
+            if show_xai and HAS_XAI:
+                st.markdown("---")
+                st.markdown("### XAI: Why Do Cliffs Happen?")
+                xai_card(
+                    "<b>Explainable AI Analysis</b>: An XGBoost model predicts cliff events from "
+                    "19 features (activity composition, prior performance, student spread, etc.), "
+                    "then SHAP values reveal which factors most contributed to each cliff. "
+                    "<b style='color:#EF4444'>Red bars</b> = increases cliff risk, "
+                    "<b style='color:#10B981'>Green bars</b> = reduces cliff risk."
+                )
+
+                # Train model (cached)
+                xai_result = _train_xai_model(cliff_threshold)
+
+                if "error" not in xai_result:
+                    # Model performance
+                    model_info = get_model_summary(xai_result)
+                    mc1, mc2, mc3, mc4 = st.columns(4)
+                    mc1.metric("Model Accuracy", f"{model_info['accuracy']:.1%}")
+                    mc2.metric("AUC-ROC", f"{model_info['auc']:.3f}")
+                    mc3.metric("Cliff Events", f"{model_info['n_cliffs']}")
+                    mc4.metric("Features Used", f"{model_info['n_features']}")
+
+                    # Global feature importance
+                    st.markdown("#### Global Feature Importance")
+                    info_card(
+                        "Which factors most influence cliff occurrence across all classrooms? "
+                        "Higher values = stronger influence on the prediction model."
+                    )
+                    global_imp = get_global_importance(xai_result, lang="en", top_k=10)
+                    fig_global = shap_global_importance(global_imp, lang="en")
+                    show_chart(fig_global)
+
+                    # Per-classroom cliff explanation
+                    st.markdown("#### Explain a Specific Cliff")
+                    info_card(
+                        "Select a classroom to see SHAP explanations for its most severe cliff. "
+                        "This answers: <b>why did this particular classroom's completion rate drop?</b>"
+                    )
+
+                    # Find classrooms with cliffs
+                    feat_df = xai_result["features_df"]
+                    cliff_rows = feat_df[feat_df["drop"] < -cliff_threshold].copy()
+                    cliff_rows["severity"] = cliff_rows["drop"].abs() * cliff_rows["prev_completion"]
+
+                    if len(cliff_rows) > 0:
+                        # Build selection options
+                        cliff_options = []
+                        for _, row in cliff_rows.sort_values("severity", ascending=False).iterrows():
+                            label = f"{_name_en(row['classroom_name'])} — Session {int(row['session'])} (drop: {row['drop']*100:.1f}%p)"
+                            cliff_options.append((label, row["classroom_name"], row["session"]))
+
+                        selected_cliff_label = st.selectbox(
+                            "Select Cliff Event",
+                            [o[0] for o in cliff_options],
+                        )
+                        selected_idx = [o[0] for o in cliff_options].index(selected_cliff_label)
+                        sel_classroom = cliff_options[selected_idx][1]
+                        sel_session = cliff_options[selected_idx][2]
+
+                        # Get SHAP explanation
+                        explanation = get_cliff_explanation(
+                            xai_result, sel_classroom, sel_session, lang="en", top_k=8
+                        )
+
+                        if explanation:
+                            col_left, col_right = st.columns([3, 2])
+
+                            with col_left:
+                                fig_shap = shap_waterfall(
+                                    explanation,
+                                    title=f"Cliff Explanation — {_name_en(sel_classroom)}, Session {int(sel_session)}",
+                                    lang="en",
+                                )
+                                show_chart(fig_shap)
+
+                            with col_right:
+                                st.markdown("##### Key Factors")
+                                for exp in sorted(explanation, key=lambda e: abs(e["shap_value"]), reverse=True):
+                                    direction = "risk" if exp["shap_value"] > 0 else "protective"
+                                    icon = "🔴" if direction == "risk" else "🟢"
+                                    val = exp["value"]
+                                    if isinstance(val, float) and val < 1.5:
+                                        val_str = f"{val:.2%}"
+                                    else:
+                                        val_str = f"{val:.1f}" if isinstance(val, float) else str(val)
+                                    st.markdown(
+                                        f"{icon} **{exp['feature']}** = {val_str}  \n"
+                                        f"&nbsp;&nbsp;&nbsp;&nbsp;SHAP: `{exp['shap_value']:+.3f}` — "
+                                        f"{'increases' if direction == 'risk' else 'reduces'} cliff risk"
+                                    )
+
+                            # XAI-powered actionable feedback
+                            if show_feedback:
+                                risk_factors = [e for e in explanation if e["shap_value"] > 0]
+                                if risk_factors:
+                                    xai_suggestions = []
+                                    for rf in risk_factors[:3]:
+                                        key = rf["feature_key"]
+                                        if key == "coding_ratio" or key == "pct_StudioActivity":
+                                            xai_suggestions.append(
+                                                f"{rf['feature']} is high ({rf['value']:.0%}) — "
+                                                "Add scaffolding before coding activities (e.g., block coding warmup)"
+                                            )
+                                        elif key == "is_phase_transition":
+                                            xai_suggestions.append(
+                                                "Phase transition detected — Insert a bridging review session "
+                                                "between learning phases"
+                                            )
+                                        elif key == "completion_std":
+                                            xai_suggestions.append(
+                                                f"High student spread ({rf['value']:.2f}) — "
+                                                "Consider differentiated instruction or ability grouping"
+                                            )
+                                        elif key == "pct_below_30":
+                                            xai_suggestions.append(
+                                                f"{rf['value']:.0%} of students below 30% — "
+                                                "Deploy targeted intervention for struggling students"
+                                            )
+                                        elif key == "prev_completion":
+                                            xai_suggestions.append(
+                                                f"Prior completion was high ({rf['value']:.0%}) — "
+                                                "A sharp contrast increases perceived difficulty; "
+                                                "consider gradual difficulty progression"
+                                            )
+                                        elif key == "passive_ratio":
+                                            xai_suggestions.append(
+                                                f"High passive content ratio ({rf['value']:.0%}) — "
+                                                "Replace some passive content with interactive activities"
+                                            )
+                                        else:
+                                            xai_suggestions.append(
+                                                f"{rf['feature']} (value: {rf['value']:.2f}) contributed to cliff risk"
+                                            )
+                                    action_card(
+                                        f"XAI-Driven Teaching Strategy — {_name_en(sel_classroom)}",
+                                        xai_suggestions
+                                    )
+                    else:
+                        st.info("No cliff events found at the current threshold.")
+                else:
+                    st.warning(f"XAI model could not be trained: {xai_result['error']}")
+            elif show_xai and not HAS_XAI:
+                st.warning("XAI features require `xgboost` and `shap` packages. Install with: `pip install xgboost shap`")
         else:
             st.success("No significant drops detected at the current threshold.")
 
@@ -692,6 +882,47 @@ elif view_level == "Classroom":
         sess_data = get_session_for_classroom(selected_classroom)
         fig = session_timeline(sess_data, title="15-Session Learning Journey", lang="en")
         show_chart(fig)
+
+        # XAI: Classroom-level cliff explanation
+        if show_xai and HAS_XAI:
+            sess_rates = sess_data.sort_values("session")["completion_rate"].values
+            sess_nums = sess_data.sort_values("session")["session"].values
+            has_cliff = False
+            for i in range(1, len(sess_rates)):
+                if sess_rates[i] - sess_rates[i-1] < -0.15:
+                    has_cliff = True
+                    break
+
+            if has_cliff:
+                st.markdown("#### XAI: Cliff Explanation for This Classroom")
+                xai_result = _train_xai_model(0.15)
+                if "error" not in xai_result:
+                    # Find worst cliff in this classroom
+                    feat_df = xai_result["features_df"]
+                    cls_cliffs = feat_df[
+                        (feat_df["classroom_name"] == selected_classroom) &
+                        (feat_df["drop"] < -0.15)
+                    ].copy()
+                    if len(cls_cliffs) > 0:
+                        cls_cliffs["severity"] = cls_cliffs["drop"].abs() * cls_cliffs["prev_completion"]
+                        worst = cls_cliffs.sort_values("severity", ascending=False).iloc[0]
+
+                        explanation = get_cliff_explanation(
+                            xai_result, selected_classroom, worst["session"],
+                            lang="en", top_k=6
+                        )
+                        if explanation:
+                            xai_card(
+                                f"<b>Session {int(worst['session'])}</b>: "
+                                f"Completion dropped by <b>{worst['drop']*100:.1f}%p</b>. "
+                                f"The XAI model identified these contributing factors:"
+                            )
+                            fig_shap = shap_waterfall(
+                                explanation,
+                                title=f"Why did Session {int(worst['session'])} drop?",
+                                lang="en",
+                            )
+                            show_chart(fig_shap)
 
     with tab3:
         info_card(

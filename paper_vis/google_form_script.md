@@ -31,8 +31,6 @@ function createCodleVizInterviewForm() {
   // ══════════════════════════════════════════
   // 페이지 1 (첫 페이지): 연구 참여 동의
   // ══════════════════════════════════════════
-  // 첫 페이지는 form.setDescription으로 이미 설명이 있으므로
-  // SectionHeader만 추가 (첫 페이지에는 PageBreak 불필요)
 
   form.addSectionHeaderItem()
     .setTitle('Part 0: 연구 참여 동의')
@@ -143,156 +141,245 @@ function createCodleVizInterviewForm() {
       '탐색 시 Overview → School → Classroom → Student 순서로 둘러보시는 것을 추천합니다.'
     );
 
-  // ── 뷰 ①②③: Overview 레벨 ──
+  // ── 뷰 ①②③④⑤: Overview 레벨 ──
 
   form.addSectionHeaderItem()
     .setTitle('3-1. Overview 레벨 뷰')
-    .setHelpText('전체 학교를 조감하는 뷰들입니다.');
+    .setHelpText('전체 학교를 조감하는 뷰들입니다. Overview 탭에서 확인할 수 있습니다.');
 
   // 뷰 1: 학교 비교
   form.addScaleItem()
-    .setTitle('① 학교 비교 막대 그래프 — 이해하기 쉬운 정도')
-    .setHelpText('전체 학교의 평균 진도를 비교하는 수평 막대 그래프입니다.')
+    .setTitle('① 학교 비교 (School Comparison) — 이해하기 쉬운 정도')
+    .setHelpText('전체 학교의 평균 진도를 비교하는 수평 막대 그래프입니다. (Overview > 학교 비교 탭)')
     .setBounds(1, 5)
     .setLabels('매우 어려움', '매우 쉬움')
     .setRequired(true);
 
   form.addScaleItem()
-    .setTitle('① 학교 비교 막대 그래프 — 유용한 정도')
+    .setTitle('① 학교 비교 — 유용한 정도')
     .setBounds(1, 5)
     .setLabels('전혀 유용하지 않음', '매우 유용함')
     .setRequired(true);
 
   form.addParagraphTextItem()
-    .setTitle('① 학교 비교 막대 그래프 — 의견')
+    .setTitle('① 학교 비교 — 의견')
     .setHelpText('이 뷰가 유용할 것 같은 상황, 개선 제안 등을 자유롭게 적어주세요.')
     .setRequired(false);
 
-  // 뷰 2: 역량 레이더
+  // 뷰 2: 역량 분석
   form.addScaleItem()
-    .setTitle('② 역량 레이더 차트 — 이해하기 쉬운 정도')
+    .setTitle('② 역량 분석 (Competency Analysis) — 이해하기 쉬운 정도')
+    .setHelpText('전체 5개 역량(DC, DA, DV, DI, CT) 평균 비교 + 역량별 학교 상세 막대 그래프입니다. (Overview > 역량 분석 탭)')
+    .setBounds(1, 5)
+    .setLabels('매우 어려움', '매우 쉬움')
+    .setRequired(true);
+
+  form.addScaleItem()
+    .setTitle('② 역량 분석 — 유용한 정도')
+    .setBounds(1, 5)
+    .setLabels('전혀 유용하지 않음', '매우 유용함')
+    .setRequired(true);
+
+  form.addParagraphTextItem()
+    .setTitle('② 역량 분석 — 의견')
+    .setRequired(false);
+
+  // 뷰 3: 활동 패턴
+  form.addScaleItem()
+    .setTitle('③ 활동 패턴 (Activity Patterns) — 이해하기 쉬운 정도')
+    .setHelpText('세션별 활동 유형(영상, 코딩, 퀴즈 등) 비율 변화를 보여주는 스택 영역 차트입니다. (Overview > 활동 패턴 탭)')
+    .setBounds(1, 5)
+    .setLabels('매우 어려움', '매우 쉬움')
+    .setRequired(true);
+
+  form.addScaleItem()
+    .setTitle('③ 활동 패턴 — 유용한 정도')
+    .setBounds(1, 5)
+    .setLabels('전혀 유용하지 않음', '매우 유용함')
+    .setRequired(true);
+
+  form.addParagraphTextItem()
+    .setTitle('③ 활동 패턴 — 의견')
+    .setRequired(false);
+
+  // 뷰 4: 진도 하락 감지
+  form.addScaleItem()
+    .setTitle('④ 진도 하락 감지 (Progress Drop Detection) — 이해하기 쉬운 정도')
+    .setHelpText('전체 학교에서 어떤 차시에 급격한 완료율 하락이 발생하는지 보여주는 히트맵입니다. 임계값 슬라이더로 민감도를 조절할 수 있습니다. (Overview > 진도 하락 감지 탭)')
+    .setBounds(1, 5)
+    .setLabels('매우 어려움', '매우 쉬움')
+    .setRequired(true);
+
+  form.addScaleItem()
+    .setTitle('④ 진도 하락 감지 — 유용한 정도')
+    .setBounds(1, 5)
+    .setLabels('전혀 유용하지 않음', '매우 유용함')
+    .setRequired(true);
+
+  form.addParagraphTextItem()
+    .setTitle('④ 진도 하락 감지 — 의견')
+    .setHelpText('하락 요약 통계, 교수 전략 제안(피드백 카드) 등에 대한 의견도 함께 적어주세요.')
+    .setRequired(false);
+
+  // 뷰 5: 궤적 비교
+  form.addScaleItem()
+    .setTitle('⑤ 궤적 비교 (Trajectory Comparison) — 이해하기 쉬운 정도')
+    .setHelpText('모든 학교의 궤적을 1차시 기준 정규화하여 비교하고, 커리큘럼별 정상 범위(25-75% 띠)를 보여줍니다. 하단에 4단계(이해/분석/코딩/종합) 성과 요약 막대 그래프도 포함됩니다. (Overview > 궤적 비교 탭)')
+    .setBounds(1, 5)
+    .setLabels('매우 어려움', '매우 쉬움')
+    .setRequired(true);
+
+  form.addScaleItem()
+    .setTitle('⑤ 궤적 비교 — 유용한 정도')
+    .setBounds(1, 5)
+    .setLabels('전혀 유용하지 않음', '매우 유용함')
+    .setRequired(true);
+
+  form.addParagraphTextItem()
+    .setTitle('⑤ 궤적 비교 — 의견')
+    .setRequired(false);
+
+  // ══════════════════════════════════════════
+  // 페이지 5: 뷰 ⑥⑦ — School 레벨
+  // ══════════════════════════════════════════
+  form.addPageBreakItem()
+    .setTitle('3-2. School 레벨 뷰')
+    .setHelpText('특정 학교를 선택하면 볼 수 있는 뷰들입니다. (사이드바에서 School 선택)');
+
+  // 뷰 6: 역량 레이더
+  form.addScaleItem()
+    .setTitle('⑥ 역량 레이더 차트 (Competency Radar) — 이해하기 쉬운 정도')
     .setHelpText('학급별 5개 역량(DC, DA, DV, DI, CT) 점수를 보여주는 레이더 차트입니다.')
     .setBounds(1, 5)
     .setLabels('매우 어려움', '매우 쉬움')
     .setRequired(true);
 
   form.addScaleItem()
-    .setTitle('② 역량 레이더 차트 — 유용한 정도')
+    .setTitle('⑥ 역량 레이더 차트 — 유용한 정도')
     .setBounds(1, 5)
     .setLabels('전혀 유용하지 않음', '매우 유용함')
     .setRequired(true);
 
   form.addParagraphTextItem()
-    .setTitle('② 역량 레이더 차트 — 의견')
+    .setTitle('⑥ 역량 레이더 차트 — 의견')
     .setRequired(false);
 
-  // 뷰 3: 학습 여정 타임라인
+  // 뷰 7: 학습 여정 타임라인
   form.addScaleItem()
-    .setTitle('③ 학습 여정 타임라인 — 이해하기 쉬운 정도')
-    .setHelpText('15차시 완료율 추이 + 단계별 배경색 + 절벽 감지 마커(▼)가 포함된 라인 차트입니다.')
+    .setTitle('⑦ 학습 여정 타임라인 (Learning Journey Timeline) — 이해하기 쉬운 정도')
+    .setHelpText('15차시 완료율 추이 + 단계별 배경색(이해/분석/코딩/종합) + 절벽 감지 마커(▼)가 포함된 라인 차트입니다.')
     .setBounds(1, 5)
     .setLabels('매우 어려움', '매우 쉬움')
     .setRequired(true);
 
   form.addScaleItem()
-    .setTitle('③ 학습 여정 타임라인 — 유용한 정도')
+    .setTitle('⑦ 학습 여정 타임라인 — 유용한 정도')
     .setBounds(1, 5)
     .setLabels('전혀 유용하지 않음', '매우 유용함')
     .setRequired(true);
 
   form.addParagraphTextItem()
-    .setTitle('③ 학습 여정 타임라인 — 의견')
-    .setHelpText('특히 삼각형 절벽 마커(▼)에 대한 의견도 적어주세요.')
+    .setTitle('⑦ 학습 여정 타임라인 — 의견')
+    .setHelpText('특히 삼각형 절벽 마커(▼)의 색상(빨강=미회복, 초록=회복)에 대한 의견도 적어주세요.')
     .setRequired(false);
 
   // ══════════════════════════════════════════
-  // 페이지 5: 뷰 ④⑤ — Classroom/Student 레벨
-  // ══════════════════════════════════════════
-  form.addPageBreakItem()
-    .setTitle('3-2. Classroom / Student 레벨 뷰')
-    .setHelpText('학급 및 학생 수준에서 세부 분석하는 뷰들입니다.');
-
-  // 뷰 4: 학생 히트맵
-  form.addScaleItem()
-    .setTitle('④ 학생 히트맵 — 이해하기 쉬운 정도')
-    .setHelpText('학생(행) × 세션(열) 매트릭스에서 빨강→초록 색상으로 완료도를 보여줍니다.')
-    .setBounds(1, 5)
-    .setLabels('매우 어려움', '매우 쉬움')
-    .setRequired(true);
-
-  form.addScaleItem()
-    .setTitle('④ 학생 히트맵 — 유용한 정도')
-    .setBounds(1, 5)
-    .setLabels('전혀 유용하지 않음', '매우 유용함')
-    .setRequired(true);
-
-  form.addParagraphTextItem()
-    .setTitle('④ 학생 히트맵 — 의견')
-    .setRequired(false);
-
-  // 뷰 5: AI 의존도 산점도
-  form.addScaleItem()
-    .setTitle('⑤ AI 의존도 산점도 — 이해하기 쉬운 정도')
-    .setHelpText('학생을 완료율 × 코딩활동 빈도 기준 4사분면(독립/AI의존/이탈/어려움)으로 분류하는 산점도입니다.')
-    .setBounds(1, 5)
-    .setLabels('매우 어려움', '매우 쉬움')
-    .setRequired(true);
-
-  form.addScaleItem()
-    .setTitle('⑤ AI 의존도 산점도 — 유용한 정도')
-    .setBounds(1, 5)
-    .setLabels('전혀 유용하지 않음', '매우 유용함')
-    .setRequired(true);
-
-  form.addParagraphTextItem()
-    .setTitle('⑤ AI 의존도 산점도 — 의견')
-    .setRequired(false);
-
-  // ══════════════════════════════════════════
-  // 페이지 6: 뷰 ⑥⑦ — 고급 분석 뷰
+  // 페이지 6: 뷰 ⑧⑨ — Classroom 레벨
   // ══════════════════════════════════════════
   form.addPageBreakItem()
-    .setTitle('3-3. 고급 분석 뷰')
-    .setHelpText('학교 간 비교 및 패턴 탐지를 위한 고급 시각화입니다.');
+    .setTitle('3-3. Classroom 레벨 뷰')
+    .setHelpText('특정 학급을 선택하면 볼 수 있는 뷰들입니다. (사이드바에서 Classroom 선택)');
 
-  // 뷰 6: 절벽 감지 히트맵
+  // 뷰 8: 학생 히트맵
   form.addScaleItem()
-    .setTitle('⑥ 절벽 감지 히트맵 (Cliff Detector) — 이해하기 쉬운 정도')
-    .setHelpText('전체 학교에서 어떤 차시에 급격한 완료율 하락이 발생하는지 보여주는 히트맵입니다.')
+    .setTitle('⑧ 학생 히트맵 (Student Heatmap) — 이해하기 쉬운 정도')
+    .setHelpText('학생(행) × 세션(열) 매트릭스에서 빨강→노랑→초록 색상으로 완료도를 보여줍니다. (Classroom > 학생 개요 탭)')
     .setBounds(1, 5)
     .setLabels('매우 어려움', '매우 쉬움')
     .setRequired(true);
 
   form.addScaleItem()
-    .setTitle('⑥ 절벽 감지 히트맵 — 유용한 정도')
+    .setTitle('⑧ 학생 히트맵 — 유용한 정도')
     .setBounds(1, 5)
     .setLabels('전혀 유용하지 않음', '매우 유용함')
     .setRequired(true);
 
   form.addParagraphTextItem()
-    .setTitle('⑥ 절벽 감지 히트맵 — 의견')
+    .setTitle('⑧ 학생 히트맵 — 의견')
     .setRequired(false);
 
-  // 뷰 7: 궤적 정렬 뷰
+  // 뷰 9: 학습 유형 분류 산점도
   form.addScaleItem()
-    .setTitle('⑦ 궤적 정렬 뷰 (Trajectory Alignment) — 이해하기 쉬운 정도')
-    .setHelpText('모든 학교의 궤적을 1차시 기준 정규화하여 비교하고, 커리큘럼별 정상 범위(띠)를 보여줍니다.')
+    .setTitle('⑨ 학습 유형 분류 (Learning Type Classification) — 이해하기 쉬운 정도')
+    .setHelpText('학생을 완료율 × 코딩활동 빈도 기준 4유형(자기주도/과도한 도움 사용/참여 부족/노력 중)으로 분류하는 산점도입니다. 마커 모양(▲/▼)은 활동 추세를 나타냅니다. (Classroom > 학습 유형 분류 탭)')
     .setBounds(1, 5)
     .setLabels('매우 어려움', '매우 쉬움')
     .setRequired(true);
 
   form.addScaleItem()
-    .setTitle('⑦ 궤적 정렬 뷰 — 유용한 정도')
+    .setTitle('⑨ 학습 유형 분류 — 유용한 정도')
     .setBounds(1, 5)
     .setLabels('전혀 유용하지 않음', '매우 유용함')
     .setRequired(true);
 
   form.addParagraphTextItem()
-    .setTitle('⑦ 궤적 정렬 뷰 — 의견')
+    .setTitle('⑨ 학습 유형 분류 — 의견')
     .setRequired(false);
 
   // ══════════════════════════════════════════
-  // 페이지 7: 탐색 경험
+  // 페이지 7: DR6/DR7/DR8 신규 기능 평가
+  // ══════════════════════════════════════════
+  form.addPageBreakItem()
+    .setTitle('3-4. 신규 기능 평가 (DR6/DR7/DR8)')
+    .setHelpText('v0.4에서 추가된 3가지 기능에 대한 평가입니다.');
+
+  // DR6: 실행 가능한 피드백
+  form.addScaleItem()
+    .setTitle('교수 전략 제안 카드 (Actionable Feedback) — 유용한 정도')
+    .setHelpText('각 차트 아래 나타나는 파란색 피드백 카드입니다. 예: "Session 8에서 15개 학급이 하락 → 코딩 기초 복습 자료 제공" 등의 구체적 교수 전략을 제안합니다.')
+    .setBounds(1, 5)
+    .setLabels('전혀 유용하지 않음', '매우 유용함')
+    .setRequired(true);
+
+  form.addScaleItem()
+    .setTitle('교수 전략 제안 카드 — 제안 내용이 실제 적용 가능한 정도')
+    .setBounds(1, 5)
+    .setLabels('전혀 적용 불가', '바로 적용 가능')
+    .setRequired(true);
+
+  form.addParagraphTextItem()
+    .setTitle('교수 전략 제안 카드 — 의견')
+    .setHelpText('제안 내용의 구체성, 실용성, 개선점 등을 적어주세요.')
+    .setRequired(false);
+
+  // DR7: 표시 설정
+  form.addScaleItem()
+    .setTitle('표시 설정 (Display Settings) — 유용한 정도')
+    .setHelpText('사이드바의 "표시 설정" 메뉴입니다. 교수 전략 제안 표시/숨기기, 텍스트 요약 표시/숨기기, 정보 밀도(기본/상세) 선택이 가능합니다.')
+    .setBounds(1, 5)
+    .setLabels('전혀 유용하지 않음', '매우 유용함')
+    .setRequired(true);
+
+  form.addParagraphTextItem()
+    .setTitle('표시 설정 — 의견')
+    .setHelpText('추가로 설정할 수 있었으면 하는 항목이 있으면 적어주세요.')
+    .setRequired(false);
+
+  // DR8: 데이터 윤리
+  form.addScaleItem()
+    .setTitle('데이터 윤리 안내 (Ethics Notice) — 안심감을 주는 정도')
+    .setHelpText('사이드바 하단의 익명화 처리 안내 문구입니다. 학교명이 School_01~46, 학생ID가 S0001~0709로 대체되었음을 안내합니다.')
+    .setBounds(1, 5)
+    .setLabels('불안함', '매우 안심됨')
+    .setRequired(true);
+
+  form.addParagraphTextItem()
+    .setTitle('데이터 윤리 안내 — 의견')
+    .setHelpText('추가로 명시해야 할 윤리적 고려사항이 있으면 적어주세요.')
+    .setRequired(false);
+
+  // ══════════════════════════════════════════
+  // 페이지 8: 탐색 경험
   // ══════════════════════════════════════════
   form.addPageBreakItem()
     .setTitle('Part 4: 탐색 경험')
@@ -300,7 +387,7 @@ function createCodleVizInterviewForm() {
 
   form.addParagraphTextItem()
     .setTitle('Q7. 시스템을 탐색하면서 이전에 몰랐던 것을 새로 알게 된 것이 있습니까?')
-    .setHelpText('예: 특정 학교의 성과 차이, 특정 차시에서의 학생 이탈 패턴 등')
+    .setHelpText('예: 특정 학교의 성과 차이, 특정 차시에서의 학생 이탈 패턴, 커리큘럼별 궤적 차이 등')
     .setRequired(true);
 
   form.addParagraphTextItem()
@@ -312,11 +399,16 @@ function createCodleVizInterviewForm() {
     .setRequired(true);
 
   form.addParagraphTextItem()
-    .setTitle('Q10. 이 시스템에 꼭 있었으면 하는데 현재 없는 기능이 있습니까?')
+    .setTitle('Q10. 교수 전략 제안 카드(파란색 피드백)가 실제 교수 활동에 도움이 될 수 있다고 생각합니까?')
+    .setHelpText('어떤 상황에서 가장 도움이 될 것 같은지, 또는 개선이 필요한 점을 적어주세요.')
+    .setRequired(true);
+
+  form.addParagraphTextItem()
+    .setTitle('Q11. 이 시스템에 꼭 있었으면 하는데 현재 없는 기능이 있습니까?')
     .setRequired(false);
 
   // ══════════════════════════════════════════
-  // 페이지 8: 디자인 요구사항 검증
+  // 페이지 9: 디자인 요구사항 검증
   // ══════════════════════════════════════════
   form.addPageBreakItem()
     .setTitle('Part 5: 디자인 요구사항 검증')
@@ -352,17 +444,37 @@ function createCodleVizInterviewForm() {
     .setLabels('전혀 동의하지 않음', '매우 동의함')
     .setRequired(true);
 
+  form.addScaleItem()
+    .setTitle('DR6. 시각화와 함께 실행 가능한 교수 전략이 제안되어야 한다')
+    .setHelpText('예: "8차시에서 15개 학급 하락 → 코딩 기초 복습 자료 제공" 같은 구체적 피드백')
+    .setBounds(1, 5)
+    .setLabels('전혀 동의하지 않음', '매우 동의함')
+    .setRequired(true);
+
+  form.addScaleItem()
+    .setTitle('DR7. 교사가 대시보드의 정보 표시를 자신의 필요에 맞게 설정할 수 있어야 한다')
+    .setHelpText('예: 피드백 카드 숨기기, 정보 밀도 조절, 텍스트 요약 표시/숨기기')
+    .setBounds(1, 5)
+    .setLabels('전혀 동의하지 않음', '매우 동의함')
+    .setRequired(true);
+
+  form.addScaleItem()
+    .setTitle('DR8. 학습 데이터의 윤리적 사용(익명화, 목적 제한 등)이 투명하게 안내되어야 한다')
+    .setBounds(1, 5)
+    .setLabels('전혀 동의하지 않음', '매우 동의함')
+    .setRequired(true);
+
   form.addParagraphTextItem()
-    .setTitle('위 5개 외에 추가해야 할 요구사항이 있다면 적어주세요.')
+    .setTitle('위 8개 외에 추가해야 할 요구사항이 있다면 적어주세요.')
     .setRequired(false);
 
   form.addParagraphTextItem()
-    .setTitle('위 5개 중 가장 중요한 것과 덜 중요한 것은? 그 이유는?')
+    .setTitle('위 8개 중 가장 중요한 것과 덜 중요한 것은? 그 이유는?')
     .setHelpText('예: "DR3이 가장 중요하다. 수업 중 즉각 개입이 필요하기 때문이다."')
     .setRequired(false);
 
   // ══════════════════════════════════════════
-  // 페이지 9: 종합 의견
+  // 페이지 10: 종합 의견
   // ══════════════════════════════════════════
   form.addPageBreakItem()
     .setTitle('Part 6: 종합 의견')
