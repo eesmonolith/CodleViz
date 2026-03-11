@@ -1,6 +1,6 @@
 """
 CodleViz — K-12 데이터 사이언스 교육 학습 분석 시스템
-한국어 버전 (v0.3)
+한국어 버전 (v0.4) — DR6/DR7/DR8 반영
 """
 import sys
 from pathlib import Path
@@ -142,6 +142,34 @@ st.markdown("""
         line-height: 1.5;
     }
 
+    /* 실행 방안 피드백 카드 (DR6) */
+    .action-card {
+        background: linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 100%);
+        border: 1px solid #BFDBFE;
+        border-left: 4px solid #2563EB;
+        padding: 14px 18px;
+        border-radius: 0 10px 10px 0;
+        margin: 10px 0;
+        font-size: 0.88rem;
+        color: #1E3A5F;
+        line-height: 1.6;
+    }
+    .action-card b { color: #1E40AF; }
+    .action-card ul { margin: 6px 0 2px 0; padding-left: 18px; }
+    .action-card li { margin-bottom: 3px; }
+
+    /* 윤리 공지 (DR8) */
+    .ethics-card {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        padding: 10px 14px;
+        border-radius: 8px;
+        margin: 8px 0;
+        font-size: 0.78rem;
+        color: #64748B;
+        line-height: 1.5;
+    }
+
     /* 구분선 */
     hr { border-color: #E2E8F0 !important; margin: 1.5rem 0 !important; }
 
@@ -170,6 +198,67 @@ def show_chart(fig):
 
 def info_card(text, card_type="info"):
     st.markdown(f'<div class="{card_type}-card">{text}</div>', unsafe_allow_html=True)
+
+
+def action_card(title, suggestions):
+    """DR6: 실행 방안 피드백 카드"""
+    items = "".join(f"<li>{s}</li>" for s in suggestions)
+    st.markdown(
+        f'<div class="action-card">'
+        f'<b>{title}</b>'
+        f'<ul>{items}</ul>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def ethics_notice():
+    """DR8: 데이터 윤리 안내"""
+    st.markdown(
+        '<div class="ethics-card">'
+        '본 대시보드의 모든 데이터는 익명화 처리되었습니다. '
+        '학교명은 School_01~School_46, 학생 ID는 S0001~S0709로 변환되어 개인 식별이 불가합니다. '
+        '데이터는 교수·학습 개선 목적으로만 활용되며, IRB 승인 하에 수집되었습니다.'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def generate_cliff_feedback(cliff_counts, worst_session):
+    """DR6: 진도 하락에 대한 실행 방안 생성"""
+    suggestions = []
+    if worst_session <= 3:
+        suggestions.append(f"{worst_session}차시(이해 단계): 사전 개념 점검 퀴즈 추가 또는 영상 보충 자료 배치")
+        suggestions.append("학생 선수지식 수준 파악 후 수준별 학습자료 제공")
+    elif worst_session <= 7:
+        suggestions.append(f"{worst_session}차시(분석 단계): 데이터 분석 예시를 단계적으로 제시하는 스캐폴딩 적용")
+        suggestions.append("분석 활동 전 짝 활동(페어 워크) 도입으로 협력적 문제 해결 유도")
+    elif worst_session <= 11:
+        suggestions.append(f"{worst_session}차시(코딩 단계): 코딩 기초 보충 활동 또는 블록 코딩→텍스트 코딩 점진적 전환")
+        suggestions.append("페어 프로그래밍 도입으로 코딩 어려움 학생 지원")
+        suggestions.append("AI 코딩 도우미 사용 가이드라인 제공")
+    else:
+        suggestions.append(f"{worst_session}차시(종합 단계): 프로젝트 중간 점검 체크리스트 도입")
+        suggestions.append("최종 발표 전 초안 피드백 시간 확보")
+    return suggestions
+
+
+def generate_quadrant_feedback(q_counts):
+    """DR6: 학습 유형별 실행 방안 생성"""
+    suggestions = []
+    if q_counts.get("참여 부족", 0) > 0:
+        n = q_counts["참여 부족"]
+        suggestions.append(f"참여 부족 학생 {n}명: 1:1 면담으로 학습 동기 파악, 흥미 기반 과제 제공")
+    if q_counts.get("노력 중", 0) > 0:
+        n = q_counts["노력 중"]
+        suggestions.append(f"노력 중 학생 {n}명: 기초 보충 자료 제공, 또래 튜터링 매칭")
+    if q_counts.get("과도한 도움 사용", 0) > 0:
+        n = q_counts["과도한 도움 사용"]
+        suggestions.append(f"AI 도움 과다 학생 {n}명: AI 사용 횟수 제한 또는 자기 설명 활동 추가")
+    if q_counts.get("자기주도 학습", 0) > 0:
+        n = q_counts["자기주도 학습"]
+        suggestions.append(f"자기주도 학생 {n}명: 심화 과제 제공 또는 또래 튜터 역할 부여")
+    return suggestions
 
 
 def curriculum_badges():
@@ -214,11 +303,22 @@ with st.sidebar:
             )
             selected_classroom = st.selectbox("학급 선택", classrooms)
 
+    # ── DR7: 교사 맞춤 설정 ──
     st.markdown("---")
+    with st.expander("표시 설정", expanded=False):
+        show_feedback = st.checkbox("실행 방안 피드백 표시", value=True,
+                                     help="DR6: 시각화 옆에 실행 가능한 교수 전략을 표시합니다")
+        show_text_summary = st.checkbox("텍스트 요약 표시", value=True,
+                                         help="차트와 함께 핵심 수치를 텍스트로 요약합니다")
+        display_density = st.radio("정보 밀도", ["기본", "상세"],
+                                    help="상세 모드에서는 더 많은 통계와 피드백을 표시합니다")
+
+    st.markdown("---")
+    ethics_notice()
     st.markdown(
-        "<div style='text-align:center; opacity:0.6; font-size:0.75rem;'>"
+        "<div style='text-align:center; opacity:0.6; font-size:0.75rem; margin-top:8px;'>"
         "49개 학급 · 709명 학생 · 3개 커리큘럼<br>"
-        "CodleViz v0.3 · HPIC Lab, 고려대학교"
+        "CodleViz v0.4 · HPIC Lab, 고려대학교"
         "</div>",
         unsafe_allow_html=True
     )
@@ -258,6 +358,28 @@ if view_level == "전체 현황":
         fig.update_layout(title=dict(text="학교별 평균 진도율 비교"))
         show_chart(fig)
 
+        # DR6+DR7: 텍스트 요약 + 실행 방안
+        if show_text_summary:
+            top3 = filtered_summary.nlargest(3, "avg_progress")
+            bot3 = filtered_summary.nsmallest(3, "avg_progress")
+            avg_all = filtered_summary["avg_progress"].mean() * 100
+            info_card(
+                f"<b>요약</b>: 전체 평균 진도율 <b>{avg_all:.1f}%</b> | "
+                f"최고: {top3.iloc[0]['classroom_name']} ({top3.iloc[0]['avg_progress']*100:.1f}%) | "
+                f"최저: {bot3.iloc[0]['classroom_name']} ({bot3.iloc[0]['avg_progress']*100:.1f}%)"
+            )
+        if show_feedback:
+            low_progress = filtered_summary[filtered_summary["avg_progress"] < 0.3]
+            if len(low_progress) > 0:
+                action_card(
+                    f"진도율 30% 미만 학급 {len(low_progress)}개 발견",
+                    [
+                        "해당 학급 교사와 진도 지연 원인 파악 면담 권장",
+                        "수업 시간 내 활동 완료 가능 여부 점검 (시간 부족 vs 난이도 문제)",
+                        "보충 학습 시간 확보 또는 활동 수 조정 검토",
+                    ]
+                )
+
     with tab2:
         info_card("5개 역량(DC 데이터이해, DA 분석, DV 시각화, DI 해석, CT 컴퓨팅사고)의 전체 평균을 비교합니다.")
         comp_df = load_competency_scores()
@@ -266,6 +388,37 @@ if view_level == "전체 현황":
         fig = competency_comparison_grouped(comp_filtered)
         fig.update_layout(title=dict(text="전체 역량 평균 비교"))
         show_chart(fig)
+
+        # DR6: 역량별 텍스트 요약 + 피드백
+        if show_text_summary:
+            comp_avg = comp_filtered.groupby("competency")["avg_progress"].mean()
+            best_comp = comp_avg.idxmax()
+            worst_comp = comp_avg.idxmin()
+            gap = (comp_avg.max() - comp_avg.min()) * 100
+            info_card(
+                f"<b>요약</b>: 가장 높은 역량 <b>{COMPETENCY_NAMES_KR[best_comp]}</b> "
+                f"({comp_avg[best_comp]*100:.1f}%) | "
+                f"가장 낮은 역량 <b>{COMPETENCY_NAMES_KR[worst_comp]}</b> "
+                f"({comp_avg[worst_comp]*100:.1f}%) | "
+                f"역량 간 격차 {gap:.1f}%p"
+            )
+        if show_feedback:
+            comp_avg = comp_filtered.groupby("competency")["avg_progress"].mean()
+            weak_comps = comp_avg[comp_avg < 0.4]
+            if len(weak_comps) > 0:
+                comp_suggestions = []
+                for c in weak_comps.index:
+                    if c == "CT":
+                        comp_suggestions.append(f"{COMPETENCY_NAMES_KR[c]}: 언플러그드 활동 → 블록 코딩 → 텍스트 코딩 단계적 전환 권장")
+                    elif c == "DV":
+                        comp_suggestions.append(f"{COMPETENCY_NAMES_KR[c]}: 시각화 예시 갤러리 제공, 차트 유형 선택 가이드 추가")
+                    elif c == "DI":
+                        comp_suggestions.append(f"{COMPETENCY_NAMES_KR[c]}: 데이터 해석 프레임워크(주장-근거-추론) 워크시트 활용")
+                    elif c == "DA":
+                        comp_suggestions.append(f"{COMPETENCY_NAMES_KR[c]}: CODAP 활용 실습 시간 확대, 분석 절차 체크리스트 제공")
+                    else:
+                        comp_suggestions.append(f"{COMPETENCY_NAMES_KR[c]}: 개념 이해를 위한 영상/퀴즈 보충 자료 배치")
+                action_card(f"40% 미만 역량 {len(weak_comps)}개 — 보강 방안", comp_suggestions)
 
         st.markdown("### 역량별 학교 비교")
         selected_comp = st.selectbox(
@@ -345,6 +498,25 @@ if view_level == "전체 현황":
             c2.metric("하락이 가장 많은 차시", f"{worst_session}차시")
             c3.metric(f"{worst_session}차시 해당 학급",
                      f"{cliff_counts[worst_session]}/{n_classrooms}개")
+
+            # DR6: 진도 하락 실행 방안
+            if show_feedback:
+                suggestions = generate_cliff_feedback(cliff_counts, worst_session)
+                pct = cliff_counts[worst_session] / n_classrooms * 100
+                suggestions.insert(0,
+                    f"{worst_session}차시에서 {cliff_counts[worst_session]}개 학급({pct:.0f}%)이 하락 — 해당 차시 학습 콘텐츠 검토 필요")
+                action_card("교수 전략 제안", suggestions)
+
+            # DR7: 상세 모드 — 차시별 하락 빈도 표
+            if display_density == "상세":
+                st.markdown("### 차시별 하락 빈도")
+                import pandas as pd
+                cliff_df = pd.DataFrame(
+                    sorted(cliff_counts.items()),
+                    columns=["차시", "하락 학급 수"]
+                )
+                cliff_df["비율"] = (cliff_df["하락 학급 수"] / n_classrooms * 100).round(1).astype(str) + "%"
+                st.dataframe(cliff_df, hide_index=True, use_container_width=True)
         else:
             st.success("현재 기준에서 급격한 하락이 발견되지 않았습니다.")
 
@@ -404,6 +576,19 @@ elif view_level == "학교별":
             show_chart(fig)
 
     st.markdown("---")
+
+    # DR6: 학교 수준 피드백
+    if show_feedback:
+        avg_progress = school_classrooms['avg_progress'].mean()
+        if avg_progress < 0.4:
+            action_card(
+                f"{selected_school} 전체 진도율 {avg_progress*100:.1f}% — 개선 필요",
+                [
+                    "학교 차원의 보충 학습 시간 확보 논의",
+                    "교사 간 수업 사례 공유 워크숍 제안",
+                    "커리큘럼 난이도 대비 수업 시수 적정성 검토",
+                ]
+            )
 
     # 학습 여정
     st.markdown("### 학습 여정 타임라인")
@@ -482,6 +667,26 @@ elif view_level == "학급별":
         if len(heat_data) > 0:
             fig = student_heatmap(heat_data, title="학생별 차시 진도")
             show_chart(fig)
+
+            # DR6: 위험 학생 식별 + 피드백
+            if show_text_summary or show_feedback:
+                student_avgs = heat_data.groupby("profile_id")["avg_progress"].mean()
+                at_risk = student_avgs[student_avgs < 0.3]
+                if show_text_summary:
+                    info_card(
+                        f"<b>요약</b>: 학생 {len(student_avgs)}명 중 "
+                        f"진도율 30% 미만 <b>{len(at_risk)}명</b> | "
+                        f"전체 평균 {student_avgs.mean()*100:.1f}%"
+                    )
+                if show_feedback and len(at_risk) > 0:
+                    action_card(
+                        f"위험 학생 {len(at_risk)}명 조기 개입 필요",
+                        [
+                            "히트맵에서 빨간색이 연속되는 학생 우선 면담",
+                            "특정 차시부터 급락한 경우 해당 차시 활동 난이도 확인",
+                            "출결·참여 이슈와 학업 어려움 구분하여 대응",
+                        ]
+                    )
         else:
             st.info("이 학급의 히트맵 데이터가 없습니다.")
 
@@ -529,6 +734,12 @@ elif view_level == "학급별":
             cols = st.columns(4)
             for i, (label, count) in enumerate(q_counts.items()):
                 cols[i].metric(label, f"{count}명")
+
+            # DR6: 유형별 실행 방안 피드백
+            if show_feedback:
+                fb_suggestions = generate_quadrant_feedback(q_counts)
+                if fb_suggestions:
+                    action_card(f"{selected_classroom} — 유형별 교수 전략", fb_suggestions)
         else:
             st.info("이 학급의 학생 데이터가 없습니다.")
 
@@ -566,6 +777,25 @@ elif view_level == "학생별":
         c4.metric("활동 추세 (코딩 단계)",
                  f"{trend:+.1f}",
                  delta=f"{'증가' if trend > 0 else '감소'}")
+
+        # DR6: 학생 수준 피드백
+        if show_feedback:
+            avg_prog = student_data['avg_progress'].mean()
+            n_sessions = len(student_data)
+            student_suggestions = []
+            if avg_prog < 0.3:
+                student_suggestions.append("진도율이 매우 낮습니다 — 1:1 면담을 통해 학습 어려움 원인 파악 필요")
+                student_suggestions.append("기초 보충 자료 제공 및 또래 튜터링 매칭 권장")
+            elif avg_prog < 0.5:
+                student_suggestions.append("중간 수준 진도 — 어려운 차시에 대한 추가 지원 제공 권장")
+            if n_sessions < 10:
+                student_suggestions.append(f"참여 차시가 {n_sessions}/15로 낮습니다 — 출결 현황 확인 필요")
+            if trend < -2:
+                student_suggestions.append("코딩 단계에서 활동량이 급감 — 코딩 난이도 조정 또는 스캐폴딩 필요")
+            elif trend > 5:
+                student_suggestions.append("코딩 단계에서 활동량 급증 — AI 도움 의존도 확인 필요")
+            if student_suggestions:
+                action_card(f"학생 {student_idx:02d} 교수 전략", student_suggestions)
 
         st.markdown("---")
 
