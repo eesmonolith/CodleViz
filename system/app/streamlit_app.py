@@ -53,6 +53,17 @@ def _name_en(name):
         result = result.replace(kr, en)
     return result
 
+def _translate_df(df):
+    """Translate Korean values in DataFrame columns for chart display"""
+    df = df.copy()
+    if "classroom_name" in df.columns:
+        df["classroom_name"] = df["classroom_name"].apply(_name_en)
+    if "curriculum" in df.columns:
+        df["curriculum"] = df["curriculum"].apply(_cur_en)
+    if "school" in df.columns:
+        df["school"] = df["school"].apply(_name_en)
+    return df
+
 # ── Page Config ──
 st.set_page_config(
     page_title="CodleViz — Learning Analytics Dashboard",
@@ -381,7 +392,7 @@ if view_level == "Overview":
     with tab1:
         info_card("Compares average progress rates across all schools (classrooms). Bar colors indicate curriculum.")
         filtered_summary = summary[summary["curriculum"].isin(selected_curricula)]
-        fig = school_comparison_bar(filtered_summary)
+        fig = school_comparison_bar(_translate_df(filtered_summary))
         fig.update_layout(title=dict(text="School Progress Rate Comparison"))
         show_chart(fig)
 
@@ -412,7 +423,7 @@ if view_level == "Overview":
         comp_df = load_competency_scores()
         filtered_classrooms = summary[summary["curriculum"].isin(selected_curricula)]["classroom_name"]
         comp_filtered = comp_df[comp_df["classroom_name"].isin(filtered_classrooms)]
-        fig = competency_comparison_grouped(comp_filtered)
+        fig = competency_comparison_grouped(_translate_df(comp_filtered))
         fig.update_layout(title=dict(text="Overall Competency Average Comparison"))
         show_chart(fig)
 
@@ -458,7 +469,7 @@ if view_level == "Overview":
 
         fig2 = go.Figure(go.Bar(
             x=comp_school["avg_progress"] * 100,
-            y=comp_school["classroom_name"],
+            y=comp_school["classroom_name"].apply(_name_en),
             orientation="h",
             marker_color=COMPETENCY_COLORS[selected_comp],
         ))
@@ -478,7 +489,7 @@ if view_level == "Overview":
         for curr in selected_curricula:
             curr_data = act_df[act_df["curriculum"] == curr]
             if len(curr_data) > 0:
-                fig = activity_type_stacked(curr_data)
+                fig = activity_type_stacked(_translate_df(curr_data))
                 fig.update_layout(title=dict(text=f"Activity Type Distribution — {_cur_en(curr)}"))
                 show_chart(fig)
 
@@ -499,7 +510,7 @@ if view_level == "Overview":
 
         cliff_threshold = st.slider("Drop Threshold (%p)", 5, 30, 15, 5,
                                      help="Drops exceeding this value are flagged") / 100
-        fig = cliff_heatmap(filtered_session, summary, threshold=cliff_threshold)
+        fig = cliff_heatmap(_translate_df(filtered_session), _translate_df(summary), threshold=cliff_threshold)
         fig.update_layout(title=dict(text="Progress Drop Heatmap by School"))
         show_chart(fig)
 
@@ -561,13 +572,13 @@ if view_level == "Overview":
             )
         ]
 
-        fig = trajectory_alignment(filtered_session, summary)
+        fig = trajectory_alignment(_translate_df(filtered_session), _translate_df(summary))
         fig.update_layout(title=dict(text="School Trajectory Comparison"))
         show_chart(fig)
 
         st.markdown("### Phase Performance Summary")
         info_card("Compares average completion rates across 4 learning phases (Comprehension > Analysis > Coding > Synthesis) for each school.")
-        fig2 = trajectory_sparklines(filtered_session, summary)
+        fig2 = trajectory_sparklines(_translate_df(filtered_session), _translate_df(summary))
         fig2.update_layout(title=dict(text="Phase Performance by School"))
         show_chart(fig2)
 

@@ -19,6 +19,7 @@ COMPETENCY_NAMES_SHORT = {
 }
 CURRICULUM_COLORS = {
     "해양쓰레기": "#3B82F6", "기후변화": "#10B981", "식량안보": "#F59E0B",
+    "Marine Debris": "#3B82F6", "Climate Change": "#10B981", "Food Security": "#F59E0B",
 }
 LAYOUT_DEFAULTS = dict(
     font=dict(family="Pretendard, Inter, sans-serif", size=13, color="#1E293B"),
