@@ -1,0 +1,1309 @@
+"""
+CodleViz — K-12 데이터 사이언스 교육 학습 분석 시스템
+한국어 버전 (v1.0) — LLM-Augmented Visual Analytics
+Phase 1 피드백 반영 + LLM-Guided Visual Exploration
+
+변경 사항 (v0.5 → v1.0):
+  1. LLM-Guided Insight Panel (자동 패턴 탐지 + 인사이트 카드)
+  2. 히트맵 컬러 스케일 개선 (더 직관적인 3단계 색상)
+  3. 활동 패턴 색상 구분 강화
+  4. 학생 탐색 이전/다음 버튼 추가
+  5. 용어 통일 (진도율 → 완료율)
+  6. 데이터 내보내기 기능 추가
+  7. 전체 현황에 AI 인사이트 패널 추가
+"""
+import sys
+from pathlib import Path
+import io
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
+
+from system.utils.data_loader import (
+    load_school_summary, load_competency_scores, load_session_progress,
+    load_student_heatmap, load_activity_types, load_studio_progress,
+    load_all_students,
+    get_school_list, get_classroom_list, get_school_stats,
+    get_competency_for_classroom, get_session_for_classroom,
+    get_heatmap_for_classroom, COMPETENCY_COLORS, COMPETENCY_NAMES_KR,
+    CURRICULUM_COLORS,
+)
+from system.components.charts import (
+    competency_radar, session_timeline, student_heatmap,
+    school_comparison_bar, competency_comparison_grouped,
+    activity_type_stacked,
+    dependency_scatter, cliff_heatmap, trajectory_alignment,
+    trajectory_sparklines,
+    shap_waterfall, shap_global_importance,
+)
+from system.components.xai_engine import (
+    HAS_XAI, extract_cliff_features, train_cliff_model,
+    get_cliff_explanation, get_global_importance, get_model_summary,
+)
+from system.components.llm_insight_engine import (
+    detect_all_patterns, generate_llm_narrative,
+    get_insight_summary, Insight,
+)
+
+# ── Page Config ──
+st.set_page_config(
+    page_title="CodleViz — LLM-Augmented 학습 분석",
+    page_icon="🔬",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ── Custom CSS (Phase 1 피드백 반영: 가독성 + 색상 개선) ──
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+    html, body, [class*="css"] {
+        font-family: 'Pretendard', 'Inter', -apple-system, sans-serif;
+    }
+
+    .block-container { padding-top: 1.5rem; max-width: 1400px; }
+
+    h1 { color: #1E293B; font-weight: 700; font-size: 1.8rem !important; }
+    h2 { color: #334155; font-weight: 600; font-size: 1.3rem !important; }
+    h3 { color: #475569; font-weight: 600; font-size: 1.1rem !important; }
+
+    /* KPI 카드 */
+    div[data-testid="stMetric"] {
+        background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);
+        padding: 16px 20px;
+        border-radius: 12px;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    div[data-testid="stMetric"] label {
+        color: #64748B !important;
+        font-size: 0.85rem !important;
+        font-weight: 500 !important;
+    }
+    div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+        color: #1E293B !important;
+        font-weight: 700 !important;
+    }
+
+    /* 탭 스타일 */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 4px;
+        background: #F1F5F9;
+        padding: 4px;
+        border-radius: 10px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px;
+        padding: 8px 20px;
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+    .stTabs [aria-selected="true"] {
+        background: white !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    /* 사이드바 */
+    section[data-testid="stSidebar"] {
+        background: #F8FAFC;
+        border-right: 1px solid #E2E8F0;
+    }
+    section[data-testid="stSidebar"] h1,
+    section[data-testid="stSidebar"] h2,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] .stMarkdown p,
+    section[data-testid="stSidebar"] .stMarkdown h2,
+    section[data-testid="stSidebar"] span {
+        color: #1E293B !important;
+    }
+    section[data-testid="stSidebar"] .stSelectbox label,
+    section[data-testid="stSidebar"] .stMultiSelect label,
+    section[data-testid="stSidebar"] .stRadio label {
+        color: #475569 !important;
+        font-size: 0.8rem !important;
+        font-weight: 600 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    /* 정보 카드 */
+    .info-card {
+        background: #F0F9FF;
+        border-left: 4px solid #2563EB;
+        padding: 12px 16px;
+        border-radius: 0 8px 8px 0;
+        margin-bottom: 16px;
+        font-size: 0.9rem;
+        color: #1E40AF;
+        line-height: 1.5;
+    }
+    .warn-card {
+        background: #FFFBEB;
+        border-left: 4px solid #F59E0B;
+        padding: 12px 16px;
+        border-radius: 0 8px 8px 0;
+        margin-bottom: 16px;
+        font-size: 0.9rem;
+        color: #92400E;
+        line-height: 1.5;
+    }
+    .success-card {
+        background: #F0FDF4;
+        border-left: 4px solid #10B981;
+        padding: 12px 16px;
+        border-radius: 0 8px 8px 0;
+        margin-bottom: 16px;
+        font-size: 0.9rem;
+        color: #065F46;
+        line-height: 1.5;
+    }
+
+    /* 실행 방안 피드백 카드 (DR6) */
+    .action-card {
+        background: linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 100%);
+        border: 1px solid #BFDBFE;
+        border-left: 4px solid #2563EB;
+        padding: 14px 18px;
+        border-radius: 0 10px 10px 0;
+        margin: 10px 0;
+        font-size: 0.88rem;
+        color: #1E3A5F;
+        line-height: 1.6;
+    }
+    .action-card b { color: #1E40AF; }
+    .action-card ul { margin: 6px 0 2px 0; padding-left: 18px; }
+    .action-card li { margin-bottom: 3px; }
+
+    /* XAI 카드 */
+    .xai-card {
+        background: linear-gradient(135deg, #FDF4FF 0%, #FAF5FF 100%);
+        border: 1px solid #E9D5FF;
+        border-left: 4px solid #8B5CF6;
+        padding: 14px 18px;
+        border-radius: 0 10px 10px 0;
+        margin: 10px 0;
+        font-size: 0.88rem;
+        color: #3B0764;
+        line-height: 1.6;
+    }
+    .xai-card b { color: #6D28D9; }
+
+    /* NEW: 인사이트 카드 (LLM-Guided) */
+    .insight-card {
+        background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+        border: 1px solid #FCD34D;
+        border-left: 5px solid #F59E0B;
+        padding: 14px 18px;
+        border-radius: 0 10px 10px 0;
+        margin: 8px 0;
+        font-size: 0.88rem;
+        color: #78350F;
+        line-height: 1.6;
+        cursor: pointer;
+        transition: box-shadow 0.2s;
+    }
+    .insight-card:hover {
+        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+    }
+    .insight-card b { color: #92400E; }
+    .insight-card .severity-critical { color: #DC2626; font-weight: 700; }
+    .insight-card .severity-warning { color: #D97706; font-weight: 700; }
+    .insight-card .severity-info { color: #2563EB; font-weight: 600; }
+
+    .insight-card-critical {
+        background: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%);
+        border: 1px solid #FCA5A5;
+        border-left: 5px solid #EF4444;
+        color: #7F1D1D;
+    }
+    .insight-card-critical b { color: #991B1B; }
+
+    .insight-card-info {
+        background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+        border: 1px solid #93C5FD;
+        border-left: 5px solid #3B82F6;
+        color: #1E3A5F;
+    }
+    .insight-card-info b { color: #1E40AF; }
+
+    /* 인사이트 패널 요약 헤더 */
+    .insight-panel-header {
+        background: linear-gradient(135deg, #1E293B 0%, #334155 100%);
+        color: white;
+        padding: 16px 20px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+    }
+    .insight-panel-header h3 { color: white !important; margin: 0 !important; }
+    .insight-panel-header .count { font-size: 1.5rem; font-weight: 700; }
+
+    /* 윤리 공지 (DR8) */
+    .ethics-card {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        padding: 10px 14px;
+        border-radius: 8px;
+        margin: 8px 0;
+        font-size: 0.78rem;
+        color: #64748B;
+        line-height: 1.5;
+    }
+
+    /* 구분선 */
+    hr { border-color: #E2E8F0 !important; margin: 1.5rem 0 !important; }
+
+    /* 범례 뱃지 */
+    .badge {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-right: 6px;
+    }
+    .badge-blue { background: #DBEAFE; color: #1E40AF; }
+    .badge-green { background: #D1FAE5; color: #065F46; }
+    .badge-amber { background: #FEF3C7; color: #92400E; }
+    .badge-purple { background: #EDE9FE; color: #5B21B6; }
+    .badge-red { background: #FEE2E2; color: #991B1B; }
+
+    /* 학생 네비게이션 버튼 */
+    .student-nav-btn {
+        display: inline-block;
+        padding: 6px 16px;
+        border-radius: 8px;
+        border: 1px solid #E2E8F0;
+        background: white;
+        color: #475569;
+        font-weight: 500;
+        cursor: pointer;
+        font-size: 0.85rem;
+    }
+    .student-nav-btn:hover { background: #F1F5F9; }
+</style>
+""", unsafe_allow_html=True)
+
+
+# ── Helper ──
+_PLOTLY_CONFIG = {"displayModeBar": False}
+
+
+def show_chart(fig):
+    """Plotly 차트를 toolbar 없이 표시"""
+    st.plotly_chart(fig, use_container_width=True, config=_PLOTLY_CONFIG)
+
+
+def info_card(text, card_type="info"):
+    st.markdown(f'<div class="{card_type}-card">{text}</div>', unsafe_allow_html=True)
+
+
+def action_card(title, suggestions):
+    """DR6: 실행 방안 피드백 카드"""
+    items = "".join(f"<li>{s}</li>" for s in suggestions)
+    st.markdown(
+        f'<div class="action-card">'
+        f'<b>{title}</b>'
+        f'<ul>{items}</ul>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def xai_card(text):
+    """XAI 설명 카드"""
+    st.markdown(f'<div class="xai-card">{text}</div>', unsafe_allow_html=True)
+
+
+def insight_card(insight: Insight):
+    """LLM-Guided 인사이트 카드"""
+    severity_class = f"insight-card-{insight.severity}" if insight.severity != "warning" else "insight-card"
+    severity_label = {"critical": "긴급", "warning": "주의", "info": "참고"}.get(insight.severity, "")
+    severity_badge = f'<span class="severity-{insight.severity}">[{severity_label}]</span>'
+
+    narrative = insight.llm_narrative or insight.summary
+    suggestions_html = ""
+    if insight.suggestions:
+        items = "".join(f"<li>{s}</li>" for s in insight.suggestions[:3])
+        suggestions_html = f"<ul style='margin:6px 0 0 0;padding-left:18px;'>{items}</ul>"
+
+    view_link = f"<br><small>관련 뷰: <b>{insight.related_view}</b></small>" if insight.related_view else ""
+
+    st.markdown(
+        f'<div class="{severity_class}">'
+        f'{severity_badge} <b>{insight.title}</b><br>'
+        f'<span style="font-size:0.85rem;">{narrative}</span>'
+        f'{suggestions_html}'
+        f'{view_link}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def ethics_notice():
+    """DR8: 데이터 윤리 안내"""
+    st.markdown(
+        '<div class="ethics-card">'
+        '본 대시보드의 모든 데이터는 익명화 처리되었습니다. '
+        '학교명은 School_01~School_46, 학생 ID는 S0001~S0709로 변환되어 개인 식별이 불가합니다. '
+        '데이터는 교수·학습 개선 목적으로만 활용됩니다.'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def generate_cliff_feedback(cliff_counts, worst_session):
+    """DR6: 진도 하락에 대한 실행 방안 생성"""
+    suggestions = []
+    if worst_session <= 3:
+        suggestions.append(f"{worst_session}차시(이해 단계): 사전 개념 점검 퀴즈 추가 또는 영상 보충 자료 배치")
+        suggestions.append("학생 선수지식 수준 파악 후 수준별 학습자료 제공")
+    elif worst_session <= 7:
+        suggestions.append(f"{worst_session}차시(분석 단계): 데이터 분석 예시를 단계적으로 제시하는 스캐폴딩 적용")
+        suggestions.append("분석 활동 전 짝 활동(페어 워크) 도입으로 협력적 문제 해결 유도")
+    elif worst_session <= 11:
+        suggestions.append(f"{worst_session}차시(코딩 단계): 코딩 기초 보충 활동 또는 블록 코딩→텍스트 코딩 점진적 전환")
+        suggestions.append("페어 프로그래밍 도입으로 코딩 어려움 학생 지원")
+        suggestions.append("AI 코딩 도우미 사용 가이드라인 제공")
+    else:
+        suggestions.append(f"{worst_session}차시(종합 단계): 프로젝트 중간 점검 체크리스트 도입")
+        suggestions.append("최종 발표 전 초안 피드백 시간 확보")
+    return suggestions
+
+
+def generate_quadrant_feedback(q_counts):
+    """DR6: 학습 유형별 실행 방안 생성"""
+    suggestions = []
+    if q_counts.get("참여 부족", 0) > 0:
+        n = q_counts["참여 부족"]
+        suggestions.append(f"참여 부족 학생 {n}명: 1:1 면담으로 학습 동기 파악, 흥미 기반 과제 제공")
+    if q_counts.get("노력 중", 0) > 0:
+        n = q_counts["노력 중"]
+        suggestions.append(f"노력 중 학생 {n}명: 기초 보충 자료 제공, 또래 튜터링 매칭")
+    if q_counts.get("과도한 도움 사용", 0) > 0:
+        n = q_counts["과도한 도움 사용"]
+        suggestions.append(f"AI 도움 과다 학생 {n}명: AI 사용 횟수 제한 또는 자기 설명 활동 추가")
+    if q_counts.get("자기주도 학습", 0) > 0:
+        n = q_counts["자기주도 학습"]
+        suggestions.append(f"자기주도 학생 {n}명: 심화 과제 제공 또는 또래 튜터 역할 부여")
+    return suggestions
+
+
+def curriculum_badges():
+    st.markdown(
+        '<span class="badge badge-blue">해양쓰레기</span>'
+        '<span class="badge badge-green">기후변화</span>'
+        '<span class="badge badge-amber">식량안보</span>',
+        unsafe_allow_html=True
+    )
+
+
+def download_dataframe(df: pd.DataFrame, filename: str, label: str = "CSV 다운로드"):
+    """DataFrame을 CSV로 다운로드하는 버튼"""
+    csv = df.to_csv(index=False).encode("utf-8-sig")
+    st.download_button(
+        label=label,
+        data=csv,
+        file_name=filename,
+        mime="text/csv",
+        use_container_width=False,
+    )
+
+
+# ── XAI: 캐시된 모델 학습 ──
+@st.cache_resource(show_spinner="AI가 진도 하락 원인을 분석하고 있습니다...")
+def _train_xai_model(threshold: float):
+    """진도 하락 원인 분석 AI 모델을 학습하고 캐시합니다."""
+    all_students = load_all_students()
+    session_prog = load_session_progress()
+    heatmap = load_student_heatmap()
+
+    features = extract_cliff_features(all_students, session_prog, heatmap)
+    result = train_cliff_model(features, threshold=threshold)
+    return result
+
+
+# ── LLM Insight: 캐시된 패턴 탐지 ──
+@st.cache_data(show_spinner="AI가 학습 패턴을 분석하고 있습니다...", ttl=600)
+def _detect_patterns(cliff_threshold: float):
+    """모든 데이터 소스에서 패턴을 탐지하고 인사이트 생성"""
+    summary = load_school_summary()
+    session = load_session_progress()
+    competency = load_competency_scores()
+    heatmap = load_student_heatmap()
+    activity = load_activity_types()
+
+    insights = detect_all_patterns(
+        summary, session, competency, heatmap, activity,
+        cliff_threshold=cliff_threshold,
+    )
+    # 규칙 기반 내러티브 (LLM API 키 없이)
+    insights = generate_llm_narrative(insights)
+    return insights
+
+
+# ── Sidebar ──
+with st.sidebar:
+    st.markdown("## CodleViz")
+    st.caption("K-12 AI·데이터 리터러시 학습 분석")
+    st.markdown(
+        '<span class="badge badge-purple">XAI v1.0</span>'
+        '<span class="badge badge-red">LLM-Guided</span>',
+        unsafe_allow_html=True,
+    )
+    st.markdown("---")
+
+    view_level = st.radio(
+        "분석 수준",
+        ["전체 현황", "학교별", "학급별", "학생별"],
+        index=0,
+        help="4단계 드릴다운: 전체 → 학교 → 학급 → 학생"
+    )
+
+    st.markdown("---")
+
+    summary = load_school_summary()
+    curricula = sorted(summary["curriculum"].unique())
+    selected_curricula = st.multiselect(
+        "커리큘럼 필터", curricula, default=curricula,
+        help="분석할 커리큘럼을 선택하세요"
+    )
+
+    if view_level in ["학교별", "학급별", "학생별"]:
+        filtered = summary[summary["curriculum"].isin(selected_curricula)]
+        schools = sorted(filtered["school"].unique())
+        selected_school = st.selectbox("학교 선택", schools)
+
+        if view_level in ["학급별", "학생별"]:
+            classrooms = sorted(
+                filtered[filtered["school"] == selected_school]["classroom_name"].tolist()
+            )
+            selected_classroom = st.selectbox("학급 선택", classrooms)
+
+    # ── DR7: 교사 맞춤 설정 ──
+    st.markdown("---")
+    with st.expander("표시 설정", expanded=False):
+        show_feedback = st.checkbox("실행 방안 피드백 표시", value=True,
+                                     help="DR6: 시각화 옆에 실행 가능한 교수 전략을 표시합니다")
+        show_xai = st.checkbox("AI 원인 분석 표시", value=True,
+                                help="진도 하락이 발생한 원인을 AI가 자동으로 분석해서 보여줍니다")
+        show_insights = st.checkbox("AI 인사이트 패널 표시", value=True,
+                                     help="LLM이 자동 탐지한 학습 패턴 인사이트를 표시합니다")
+        show_text_summary = st.checkbox("텍스트 요약 표시", value=True,
+                                         help="차트와 함께 핵심 수치를 텍스트로 요약합니다")
+        display_density = st.radio("정보 밀도", ["기본", "상세"],
+                                    help="상세 모드에서는 더 많은 통계와 피드백을 표시합니다")
+
+    # LLM API 설정 (선택적)
+    with st.expander("LLM 설정 (선택)", expanded=False):
+        llm_provider = st.selectbox("LLM 제공자", ["규칙 기반 (API 키 불필요)", "OpenAI", "Anthropic"])
+        llm_api_key = ""
+        if llm_provider != "규칙 기반 (API 키 불필요)":
+            llm_api_key = st.text_input("API 키", type="password")
+
+    st.markdown("---")
+    ethics_notice()
+    st.markdown(
+        "<div style='text-align:center; opacity:0.6; font-size:0.75rem; margin-top:8px;'>"
+        "49개 학급 · 709명 학생 · 3개 커리큘럼<br>"
+        "CodleViz v1.0 (LLM-Augmented) · HPIC Lab, 고려대학교"
+        "</div>",
+        unsafe_allow_html=True
+    )
+
+
+# ══════════════════════════════════════════════════════
+# 전체 현황
+# ══════════════════════════════════════════════════════
+if view_level == "전체 현황":
+    st.title("K-12 AI·데이터 리터러시 교육 현황")
+    curriculum_badges()
+    st.markdown("")
+
+    stats = get_school_stats()
+
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("참여 학교", f"{stats['n_schools']}개")
+    c2.metric("참여 학생", f"{stats['n_students']}명")
+    c3.metric("학급 수", f"{stats['n_classrooms']}개")
+    c4.metric("커리큘럼", f"{stats['n_curricula']}종")
+    c5.metric("평균 완료율", f"{stats['avg_progress']*100:.1f}%")
+
+    st.markdown("---")
+
+    # ═══ NEW: AI 인사이트 패널 ═══
+    if show_insights:
+        insights = _detect_patterns(0.15)
+        ins_summary = get_insight_summary(insights)
+
+        st.markdown(
+            '<div class="insight-panel-header">'
+            '<h3>AI 인사이트 패널</h3>'
+            f'<span class="count">{ins_summary["total"]}개</span> 패턴 발견 — '
+            f'긴급 {ins_summary["critical"]}건 · 주의 {ins_summary["warning"]}건 · 참고 {ins_summary["info"]}건'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+        # 인사이트 카드 표시 (최대 6개)
+        insight_cols = st.columns(2)
+        for idx, ins in enumerate(insights[:6]):
+            with insight_cols[idx % 2]:
+                insight_card(ins)
+
+        if len(insights) > 6:
+            with st.expander(f"나머지 인사이트 {len(insights) - 6}개 더 보기"):
+                for ins in insights[6:]:
+                    insight_card(ins)
+
+        st.markdown("---")
+
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "학교 비교",
+        "역량 분석",
+        "활동 패턴",
+        "진도 하락 탐지",
+        "학습 흐름 비교",
+    ])
+
+    with tab1:
+        info_card("각 학교(학급)의 평균 완료율을 비교합니다. 막대 색상은 커리큘럼을 나타냅니다.")
+        filtered_summary = summary[summary["curriculum"].isin(selected_curricula)]
+        fig = school_comparison_bar(filtered_summary)
+        fig.update_layout(title=dict(text="학교별 평균 완료율 비교"))
+        show_chart(fig)
+
+        # 내보내기 버튼
+        download_dataframe(
+            filtered_summary[["classroom_name", "curriculum", "n_students", "avg_progress"]],
+            "codleviz_school_comparison.csv",
+            "학교 비교 데이터 다운로드"
+        )
+
+        # DR6+DR7: 텍스트 요약 + 실행 방안
+        if show_text_summary:
+            top3 = filtered_summary.nlargest(3, "avg_progress")
+            bot3 = filtered_summary.nsmallest(3, "avg_progress")
+            avg_all = filtered_summary["avg_progress"].mean() * 100
+            info_card(
+                f"<b>요약</b>: 전체 평균 완료율 <b>{avg_all:.1f}%</b> | "
+                f"최고: {top3.iloc[0]['classroom_name']} ({top3.iloc[0]['avg_progress']*100:.1f}%) | "
+                f"최저: {bot3.iloc[0]['classroom_name']} ({bot3.iloc[0]['avg_progress']*100:.1f}%)"
+            )
+        if show_feedback:
+            low_progress = filtered_summary[filtered_summary["avg_progress"] < 0.3]
+            if len(low_progress) > 0:
+                action_card(
+                    f"완료율 30% 미만 학급 {len(low_progress)}개 발견",
+                    [
+                        "해당 학급 교사와 진도 지연 원인 파악 면담 권장",
+                        "수업 시간 내 활동 완료 가능 여부 점검 (시간 부족 vs 난이도 문제)",
+                        "보충 학습 시간 확보 또는 활동 수 조정 검토",
+                    ]
+                )
+
+    with tab2:
+        info_card("5개 역량(DC 데이터이해, DA 분석, DV 시각화, DI 해석, CT 컴퓨팅사고)의 전체 평균을 비교합니다.")
+        comp_df = load_competency_scores()
+        filtered_classrooms = summary[summary["curriculum"].isin(selected_curricula)]["classroom_name"]
+        comp_filtered = comp_df[comp_df["classroom_name"].isin(filtered_classrooms)]
+        fig = competency_comparison_grouped(comp_filtered)
+        fig.update_layout(title=dict(text="전체 역량 평균 비교"))
+        show_chart(fig)
+
+        # DR6: 역량별 텍스트 요약 + 피드백
+        if show_text_summary:
+            comp_avg = comp_filtered.groupby("competency")["avg_progress"].mean()
+            best_comp = comp_avg.idxmax()
+            worst_comp = comp_avg.idxmin()
+            gap = (comp_avg.max() - comp_avg.min()) * 100
+            info_card(
+                f"<b>요약</b>: 가장 높은 역량 <b>{COMPETENCY_NAMES_KR[best_comp]}</b> "
+                f"({comp_avg[best_comp]*100:.1f}%) | "
+                f"가장 낮은 역량 <b>{COMPETENCY_NAMES_KR[worst_comp]}</b> "
+                f"({comp_avg[worst_comp]*100:.1f}%) | "
+                f"역량 간 격차 {gap:.1f}%p"
+            )
+        if show_feedback:
+            comp_avg = comp_filtered.groupby("competency")["avg_progress"].mean()
+            weak_comps = comp_avg[comp_avg < 0.4]
+            if len(weak_comps) > 0:
+                comp_suggestions = []
+                for c in weak_comps.index:
+                    if c == "CT":
+                        comp_suggestions.append(f"{COMPETENCY_NAMES_KR[c]}: 언플러그드 활동 → 블록 코딩 → 텍스트 코딩 단계적 전환 권장")
+                    elif c == "DV":
+                        comp_suggestions.append(f"{COMPETENCY_NAMES_KR[c]}: 시각화 예시 갤러리 제공, 차트 유형 선택 가이드 추가")
+                    elif c == "DI":
+                        comp_suggestions.append(f"{COMPETENCY_NAMES_KR[c]}: 데이터 해석 프레임워크(주장-근거-추론) 워크시트 활용")
+                    elif c == "DA":
+                        comp_suggestions.append(f"{COMPETENCY_NAMES_KR[c]}: CODAP 활용 실습 시간 확대, 분석 절차 체크리스트 제공")
+                    else:
+                        comp_suggestions.append(f"{COMPETENCY_NAMES_KR[c]}: 개념 이해를 위한 영상/퀴즈 보충 자료 배치")
+                action_card(f"40% 미만 역량 {len(weak_comps)}개 — 보강 방안", comp_suggestions)
+
+        st.markdown("### 역량별 학교 비교")
+        selected_comp = st.selectbox(
+            "역량 선택",
+            list(COMPETENCY_NAMES_KR.keys()),
+            format_func=lambda x: f"{x} — {COMPETENCY_NAMES_KR[x]}"
+        )
+        comp_school = comp_filtered[comp_filtered["competency"] == selected_comp].copy()
+        comp_school = comp_school.sort_values("avg_progress", ascending=True)
+
+        fig2 = go.Figure(go.Bar(
+            x=comp_school["avg_progress"] * 100,
+            y=comp_school["classroom_name"],
+            orientation="h",
+            marker_color=COMPETENCY_COLORS[selected_comp],
+        ))
+        fig2.update_layout(
+            xaxis=dict(title=f"{COMPETENCY_NAMES_KR[selected_comp]} 점수 (%)", range=[0, 100]),
+            yaxis=dict(title=""),
+            height=max(400, len(comp_school) * 25 + 100),
+            margin=dict(l=250, r=20, t=30, b=40),
+            font=dict(family="Pretendard, Inter, sans-serif", size=12),
+            paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
+        )
+        show_chart(fig2)
+
+    with tab3:
+        info_card("각 차시에서 학생들이 수행한 활동 유형(영상, 코딩, 퀴즈 등)의 비율 변화를 보여줍니다.")
+        act_df = load_activity_types()
+        for curr in selected_curricula:
+            curr_data = act_df[act_df["curriculum"] == curr]
+            if len(curr_data) > 0:
+                fig = activity_type_stacked(curr_data)
+                fig.update_layout(title=dict(text=f"활동 유형 분포 — {curr}"))
+                show_chart(fig)
+
+    with tab4:
+        info_card(
+            "<b>진도 하락 탐지</b>: 학생들의 완료율이 갑자기 떨어지는 차시를 자동으로 찾아줍니다. "
+            "색이 진할수록 많이 떨어진 것입니다. "
+            "여러 학급에서 같은 차시에 하락이 나타나면, 그 차시의 학습 내용이 어렵거나 개선이 필요할 수 있습니다.",
+            "warn"
+        )
+
+        session_df = load_session_progress()
+        filtered_session = session_df[
+            session_df["classroom_name"].isin(
+                summary[summary["curriculum"].isin(selected_curricula)]["classroom_name"]
+            )
+        ]
+
+        cliff_threshold = st.slider("하락 기준 (%p)", 5, 30, 15, 5,
+                                     help="이 값 이상 떨어지면 '하락'으로 표시합니다") / 100
+        fig = cliff_heatmap(filtered_session, summary, threshold=cliff_threshold)
+        fig.update_layout(title=dict(text="학교별 진도 하락 현황"))
+        show_chart(fig)
+
+        # 하락 통계
+        st.markdown("### 하락 발생 요약")
+        cliff_counts = {}
+        for classroom in filtered_session["classroom_name"].unique():
+            cls_data = filtered_session[
+                filtered_session["classroom_name"] == classroom
+            ].sort_values("session")
+            rates = cls_data["completion_rate"].values
+            for i in range(1, len(rates)):
+                if rates[i] - rates[i-1] < -cliff_threshold:
+                    session_num = int(cls_data["session"].values[i])
+                    cliff_counts[session_num] = cliff_counts.get(session_num, 0) + 1
+
+        if cliff_counts:
+            c1, c2, c3 = st.columns(3)
+            total_cliffs = sum(cliff_counts.values())
+            worst_session = max(cliff_counts, key=cliff_counts.get)
+            n_classrooms = len(filtered_session['classroom_name'].unique())
+            c1.metric("하락 발생 횟수", f"{total_cliffs}건")
+            c2.metric("하락이 가장 많은 차시", f"{worst_session}차시")
+            c3.metric(f"{worst_session}차시 해당 학급",
+                     f"{cliff_counts[worst_session]}/{n_classrooms}개")
+
+            # DR6: 진도 하락 실행 방안
+            if show_feedback:
+                suggestions = generate_cliff_feedback(cliff_counts, worst_session)
+                pct = cliff_counts[worst_session] / n_classrooms * 100
+                suggestions.insert(0,
+                    f"{worst_session}차시에서 {cliff_counts[worst_session]}개 학급({pct:.0f}%)이 하락 — 해당 차시 학습 콘텐츠 검토 필요")
+                action_card("교수 전략 제안", suggestions)
+
+            # DR7: 상세 모드 — 차시별 하락 빈도 표
+            if display_density == "상세":
+                st.markdown("### 차시별 하락 빈도")
+                cliff_df = pd.DataFrame(
+                    sorted(cliff_counts.items()),
+                    columns=["차시", "하락 학급 수"]
+                )
+                cliff_df["비율"] = (cliff_df["하락 학급 수"] / n_classrooms * 100).round(1).astype(str) + "%"
+                st.dataframe(cliff_df, hide_index=True, use_container_width=True)
+
+                # 내보내기 버튼
+                download_dataframe(cliff_df, "codleviz_cliff_summary.csv", "하락 데이터 다운로드")
+
+            # ══════════════════════════════════════════
+            # XAI: SHAP 기반 진도 하락 설명
+            # ══════════════════════════════════════════
+            if show_xai and HAS_XAI:
+                st.markdown("---")
+                st.markdown("### AI 분석: 왜 진도가 떨어졌을까?")
+                xai_card(
+                    "<b>AI 원인 분석</b>: AI가 활동 유형, 이전 차시 성취도, 학생 간 편차 등 "
+                    "19가지 요인을 종합 분석하여 진도 하락의 원인을 자동으로 찾아줍니다. "
+                    "<b style='color:#EF4444'>빨간 막대</b> = 하락을 일으킨 원인, "
+                    "<b style='color:#10B981'>초록 막대</b> = 하락을 막아준 요인."
+                )
+
+                # 모델 학습 (캐시)
+                xai_result = _train_xai_model(cliff_threshold)
+
+                if "error" not in xai_result:
+                    # 분석 신뢰도
+                    model_info = get_model_summary(xai_result)
+                    mc1, mc2, mc3, mc4 = st.columns(4)
+                    mc1.metric("분석 정확도", f"{model_info['accuracy']:.1%}")
+                    mc2.metric("분석 신뢰도", f"{model_info['auc']:.1%}")
+                    mc3.metric("분석된 하락 건수", f"{model_info['n_cliffs']}건")
+                    mc4.metric("분석 요인 수", f"{model_info['n_features']}개")
+
+                    # 하락에 영향을 주는 주요 요인
+                    st.markdown("#### 진도 하락에 가장 큰 영향을 주는 요인")
+                    info_card(
+                        "전체 학급 데이터를 분석한 결과, 아래 요인들이 진도 하락과 가장 관련이 깊습니다. "
+                        "막대가 길수록 하락 여부에 큰 영향을 미치는 요인입니다."
+                    )
+                    global_imp = get_global_importance(xai_result, lang="kr", top_k=10)
+                    fig_global = shap_global_importance(global_imp, lang="kr")
+                    show_chart(fig_global)
+
+                    # 개별 학급 하락 설명
+                    st.markdown("#### 학급별 하락 원인 상세 보기")
+                    info_card(
+                        "아래에서 학급을 선택하면, AI가 해당 학급의 진도 하락이 <b>왜 발생했는지</b> "
+                        "구체적인 원인을 분석해서 보여줍니다."
+                    )
+
+                    # 하락이 있는 학급 찾기
+                    feat_df = xai_result["features_df"]
+                    cliff_rows = feat_df[feat_df["drop"] < -cliff_threshold].copy()
+                    cliff_rows["severity"] = cliff_rows["drop"].abs() * cliff_rows["prev_completion"]
+
+                    if len(cliff_rows) > 0:
+                        # 선택 옵션 구성
+                        cliff_options = []
+                        for _, row in cliff_rows.sort_values("severity", ascending=False).iterrows():
+                            label = f"{row['classroom_name']} — {int(row['session'])}차시 (하락: {row['drop']*100:.1f}%p)"
+                            cliff_options.append((label, row["classroom_name"], row["session"]))
+
+                        selected_cliff_label = st.selectbox(
+                            "분석할 학급·차시 선택",
+                            [o[0] for o in cliff_options],
+                        )
+                        selected_idx = [o[0] for o in cliff_options].index(selected_cliff_label)
+                        sel_classroom = cliff_options[selected_idx][1]
+                        sel_session = cliff_options[selected_idx][2]
+
+                        # SHAP 설명 가져오기
+                        explanation = get_cliff_explanation(
+                            xai_result, sel_classroom, sel_session, lang="kr", top_k=8
+                        )
+
+                        if explanation:
+                            col_left, col_right = st.columns([3, 2])
+
+                            with col_left:
+                                fig_shap = shap_waterfall(
+                                    explanation,
+                                    title=f"하락 원인 분석 — {sel_classroom}, {int(sel_session)}차시",
+                                    lang="kr",
+                                )
+                                show_chart(fig_shap)
+
+                            with col_right:
+                                st.markdown("##### 주요 원인 요약")
+                                for exp in sorted(explanation, key=lambda e: abs(e["shap_value"]), reverse=True):
+                                    is_risk = exp["shap_value"] > 0
+                                    icon = "🔴" if is_risk else "🟢"
+                                    val = exp["value"]
+                                    if isinstance(val, float) and val < 1.5:
+                                        val_str = f"{val:.0%}"
+                                    else:
+                                        val_str = f"{val:.1f}" if isinstance(val, float) else str(val)
+                                    impact = abs(exp["shap_value"])
+                                    if impact > 1.0:
+                                        strength = "매우 큰 영향"
+                                    elif impact > 0.3:
+                                        strength = "큰 영향"
+                                    elif impact > 0.1:
+                                        strength = "보통 영향"
+                                    else:
+                                        strength = "약한 영향"
+                                    label = "하락 원인" if is_risk else "하락 방지 요인"
+                                    st.markdown(
+                                        f"{icon} **{exp['feature']}** ({val_str})  \n"
+                                        f"&nbsp;&nbsp;&nbsp;&nbsp;→ {label} ({strength})"
+                                    )
+
+                            # XAI 기반 실행 방안 피드백
+                            if show_feedback:
+                                risk_factors = [e for e in explanation if e["shap_value"] > 0]
+                                if risk_factors:
+                                    xai_suggestions = []
+                                    for rf in risk_factors[:3]:
+                                        key = rf["feature_key"]
+                                        if key == "coding_ratio" or key == "pct_StudioActivity":
+                                            xai_suggestions.append(
+                                                f"{rf['feature']} 비율이 높음 ({rf['value']:.0%}) — "
+                                                "코딩 활동 전 스캐폴딩 추가 (예: 블록 코딩 워밍업)"
+                                            )
+                                        elif key == "is_phase_transition":
+                                            xai_suggestions.append(
+                                                "학습 단계 전환 구간 — 단계 간 연결 복습 차시 삽입 권장"
+                                            )
+                                        elif key == "completion_std":
+                                            xai_suggestions.append(
+                                                f"학생 간 편차가 큼 ({rf['value']:.2f}) — "
+                                                "수준별 맞춤 수업 또는 능력별 그룹 활동 고려"
+                                            )
+                                        elif key == "pct_below_30":
+                                            xai_suggestions.append(
+                                                f"학생의 {rf['value']:.0%}가 30% 미만 — "
+                                                "부진 학생 대상 맞춤 개입 필요"
+                                            )
+                                        elif key == "prev_completion":
+                                            xai_suggestions.append(
+                                                f"이전 차시 완료율이 높았음 ({rf['value']:.0%}) — "
+                                                "급격한 난이도 상승이 체감 난이도를 높임; 점진적 난이도 조절 권장"
+                                            )
+                                        elif key == "passive_ratio":
+                                            xai_suggestions.append(
+                                                f"수동 콘텐츠 비율이 높음 ({rf['value']:.0%}) — "
+                                                "일부 수동 콘텐츠를 상호작용 활동으로 대체"
+                                            )
+                                        else:
+                                            xai_suggestions.append(
+                                                f"{rf['feature']} (값: {rf['value']:.2f})이(가) 하락 위험에 기여"
+                                            )
+                                    action_card(
+                                        f"AI가 추천하는 교수 전략 — {sel_classroom}",
+                                        xai_suggestions
+                                    )
+                    else:
+                        st.info("현재 기준에서 하락 이벤트가 발견되지 않았습니다.")
+                else:
+                    st.warning(f"AI 원인 분석을 수행할 수 없습니다: {xai_result['error']}")
+            elif show_xai and not HAS_XAI:
+                st.warning("AI 원인 분석 기능을 사용하려면 추가 패키지 설치가 필요합니다. 관리자에게 문의하세요.")
+        else:
+            st.success("현재 기준에서 급격한 하락이 발견되지 않았습니다.")
+
+    with tab5:
+        info_card(
+            "<b>학습 흐름 비교</b>: 모든 학교의 진도 변화를 1차시 기준으로 맞춰서 비교합니다. "
+            "색상 띠는 커리큘럼별 평균 범위이며, 띠 아래에 있는 학교는 같은 커리큘럼 내에서 상대적으로 진도가 느린 편입니다.",
+            "success"
+        )
+
+        session_df = load_session_progress()
+        filtered_session = session_df[
+            session_df["classroom_name"].isin(
+                summary[summary["curriculum"].isin(selected_curricula)]["classroom_name"]
+            )
+        ]
+
+        fig = trajectory_alignment(filtered_session, summary)
+        fig.update_layout(title=dict(text="학교별 학습 흐름 비교"))
+        show_chart(fig)
+
+        st.markdown("### 단계별 성과 요약")
+        info_card("4개 학습 단계(이해→분석→코딩→종합)별로 학교마다 평균 완료율이 어떻게 다른지 비교합니다.")
+        fig2 = trajectory_sparklines(filtered_session, summary)
+        fig2.update_layout(title=dict(text="학교별 단계 성과"))
+        show_chart(fig2)
+
+
+# ══════════════════════════════════════════════════════
+# 학교별
+# ══════════════════════════════════════════════════════
+elif view_level == "학교별":
+    st.title(f"{selected_school}")
+
+    school_classrooms = summary[
+        (summary["school"] == selected_school) &
+        (summary["curriculum"].isin(selected_curricula))
+    ]
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("학급 수", f"{len(school_classrooms)}개")
+    c2.metric("학생 수", f"{int(school_classrooms['n_students'].sum())}명")
+    c3.metric("사전·사후 매칭", f"{int(school_classrooms['n_paired'].sum())}명")
+    c4.metric("평균 완료율", f"{school_classrooms['avg_progress'].mean()*100:.1f}%")
+
+    st.markdown("---")
+
+    # 역량 레이더
+    st.markdown("### 학급별 역량 프로필")
+    info_card("각 학급의 5개 역량 점수를 레이더 차트로 표시합니다. 차트가 넓을수록 해당 역량의 달성도가 높습니다.")
+
+    cols = st.columns(min(3, len(school_classrooms)))
+    for i, (_, row) in enumerate(school_classrooms.iterrows()):
+        comp_data = get_competency_for_classroom(row["classroom_name"])
+        with cols[i % len(cols)]:
+            fig = competency_radar(comp_data, title=row["classroom_name"])
+            show_chart(fig)
+
+    st.markdown("---")
+
+    # DR6: 학교 수준 피드백
+    if show_feedback:
+        avg_progress = school_classrooms['avg_progress'].mean()
+        if avg_progress < 0.4:
+            action_card(
+                f"{selected_school} 전체 완료율 {avg_progress*100:.1f}% — 개선 필요",
+                [
+                    "학교 차원의 보충 학습 시간 확보 논의",
+                    "교사 간 수업 사례 공유 워크숍 제안",
+                    "커리큘럼 난이도 대비 수업 시수 적정성 검토",
+                ]
+            )
+
+    # 학습 여정
+    st.markdown("### 학습 여정 타임라인")
+    info_card(
+        "15차시 완료율 추이입니다. 배경색은 학습 단계(이해/분석/코딩/종합)를 나타냅니다. "
+        "<b>▼ 삼각형 마커</b>는 완료율이 크게 떨어진 구간입니다. "
+        "빨간색=이후에도 회복 안 됨, 초록색=이후 회복됨.",
+        "warn"
+    )
+    for _, row in school_classrooms.iterrows():
+        sess_data = get_session_for_classroom(row["classroom_name"])
+        if len(sess_data) > 0:
+            fig = session_timeline(sess_data, title=row["classroom_name"])
+            show_chart(fig)
+
+
+# ══════════════════════════════════════════════════════
+# 학급별
+# ══════════════════════════════════════════════════════
+elif view_level == "학급별":
+    st.title(f"{selected_classroom}")
+
+    classroom_info = summary[summary["classroom_name"] == selected_classroom].iloc[0]
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("학생 수", f"{int(classroom_info['n_students'])}명")
+    c2.metric("사전 검사", f"{int(classroom_info['n_pre'])}명")
+    c3.metric("사후 검사", f"{int(classroom_info['n_post'])}명")
+    c4.metric("평균 완료율", f"{classroom_info['avg_progress']*100:.1f}%")
+
+    st.markdown("---")
+
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "역량 달성도",
+        "차시별 진도",
+        "학생별 현황",
+        "학습 유형 분류",
+    ])
+
+    with tab1:
+        info_card("이 학급의 5개 역량 달성도입니다.")
+        comp_data = get_competency_for_classroom(selected_classroom)
+        fig = competency_radar(comp_data, title="5대 역량 점수")
+        show_chart(fig)
+
+        comp_display = (
+            comp_data[["competency", "avg_progress", "n_activities", "n_students"]]
+            .assign(avg_progress=lambda x: (x["avg_progress"] * 100).round(1))
+            .rename(columns={
+                "competency": "역량",
+                "avg_progress": "점수 (%)",
+                "n_activities": "활동 수",
+                "n_students": "학생 수",
+            })
+        )
+        st.dataframe(comp_display, hide_index=True, use_container_width=True)
+
+        # 내보내기
+        download_dataframe(comp_display, f"codleviz_{selected_classroom}_competency.csv", "역량 데이터 다운로드")
+
+    with tab2:
+        info_card(
+            "15차시에 걸친 학습 진행 추이입니다. "
+            "▼ 마커는 완료율이 크게 떨어진 구간입니다.",
+        )
+        sess_data = get_session_for_classroom(selected_classroom)
+        fig = session_timeline(sess_data, title="15차시 학습 여정")
+        show_chart(fig)
+
+        # XAI: 학급 수준 하락 설명
+        if show_xai and HAS_XAI:
+            sess_rates = sess_data.sort_values("session")["completion_rate"].values
+            sess_nums = sess_data.sort_values("session")["session"].values
+            has_cliff = False
+            for i in range(1, len(sess_rates)):
+                if sess_rates[i] - sess_rates[i-1] < -0.15:
+                    has_cliff = True
+                    break
+
+            if has_cliff:
+                st.markdown("#### AI 분석: 이 학급의 하락 원인")
+                xai_result = _train_xai_model(0.15)
+                if "error" not in xai_result:
+                    # 이 학급에서 가장 심한 하락 찾기
+                    feat_df = xai_result["features_df"]
+                    cls_cliffs = feat_df[
+                        (feat_df["classroom_name"] == selected_classroom) &
+                        (feat_df["drop"] < -0.15)
+                    ].copy()
+                    if len(cls_cliffs) > 0:
+                        cls_cliffs["severity"] = cls_cliffs["drop"].abs() * cls_cliffs["prev_completion"]
+                        worst = cls_cliffs.sort_values("severity", ascending=False).iloc[0]
+
+                        explanation = get_cliff_explanation(
+                            xai_result, selected_classroom, worst["session"],
+                            lang="kr", top_k=6
+                        )
+                        if explanation:
+                            xai_card(
+                                f"<b>{int(worst['session'])}차시</b>에서 "
+                                f"완료율이 <b>{worst['drop']*100:.1f}%p</b> 하락했습니다. "
+                                f"AI가 분석한 주요 원인은 다음과 같습니다:"
+                            )
+                            fig_shap = shap_waterfall(
+                                explanation,
+                                title=f"{int(worst['session'])}차시 하락 원인은?",
+                                lang="kr",
+                            )
+                            show_chart(fig_shap)
+
+    with tab3:
+        info_card(
+            "학생(행) × 차시(열) 매트릭스입니다. "
+            "색상: <span style='color:#DC2626'>빨강</span>=낮은 완료율, "
+            "<span style='color:#D97706'>노랑</span>=중간, "
+            "<span style='color:#059669'>초록</span>=높은 완료율. "
+            "개입이 필요한 학생을 빠르게 찾을 수 있습니다."
+        )
+        heat_data = get_heatmap_for_classroom(selected_classroom)
+        if len(heat_data) > 0:
+            fig = student_heatmap(heat_data, title="학생별 차시 진도")
+            # Phase 1 피드백: 히트맵 컬러 개선 - 더 구분 가능한 색상
+            fig.update_traces(
+                colorscale=[
+                    [0, "#DC2626"],      # 빨강 (0%)
+                    [0.3, "#F97316"],     # 주황 (30%)
+                    [0.5, "#FBBF24"],     # 노랑 (50%)
+                    [0.7, "#84CC16"],     # 연두 (70%)
+                    [1, "#059669"],       # 초록 (100%)
+                ],
+            )
+            show_chart(fig)
+
+            # DR6: 위험 학생 식별 + 피드백
+            if show_text_summary or show_feedback:
+                student_avgs = heat_data.groupby("profile_id")["avg_progress"].mean()
+                at_risk = student_avgs[student_avgs < 0.3]
+                if show_text_summary:
+                    info_card(
+                        f"<b>요약</b>: 학생 {len(student_avgs)}명 중 "
+                        f"완료율 30% 미만 <b>{len(at_risk)}명</b> | "
+                        f"전체 평균 {student_avgs.mean()*100:.1f}%"
+                    )
+                if show_feedback and len(at_risk) > 0:
+                    action_card(
+                        f"위험 학생 {len(at_risk)}명 조기 개입 필요",
+                        [
+                            "히트맵에서 빨간색이 연속되는 학생 우선 면담",
+                            "특정 차시부터 급락한 경우 해당 차시 활동 난이도 확인",
+                            "출결·참여 이슈와 학업 어려움 구분하여 대응",
+                        ]
+                    )
+
+            # 내보내기
+            export_df = heat_data.pivot_table(
+                index="profile_id", columns="session",
+                values="avg_progress", aggfunc="mean"
+            ).round(3)
+            download_dataframe(
+                export_df.reset_index(),
+                f"codleviz_{selected_classroom}_heatmap.csv",
+                "학생 히트맵 데이터 다운로드"
+            )
+        else:
+            st.info("이 학급의 히트맵 데이터가 없습니다.")
+
+    with tab4:
+        info_card(
+            "<b>학습 유형 분류</b>: 완료율과 코딩 활동량을 기준으로 학생을 4개 유형으로 나눕니다.<br>"
+            "• <b style='color:#10B981'>자기주도 학습</b>: 완료율 높음 + 활동 적음 → 스스로 잘 해냄<br>"
+            "• <b style='color:#EF4444'>과도한 도움 사용</b>: 완료율 높음 + 활동 많음 → AI 도움에 많이 의존<br>"
+            "• <b style='color:#94A3B8'>참여 부족</b>: 완료율 낮음 + 활동 적음 → 학습에 잘 참여하지 않음<br>"
+            "• <b style='color:#F59E0B'>노력 중</b>: 완료율 낮음 + 활동 많음 → 열심히 하지만 어려움을 겪는 중<br>"
+            "마커 모양: ▲=활동이 점점 늘어남, ▼=활동이 점점 줄어듦",
+            "warn"
+        )
+
+        heat_data = get_heatmap_for_classroom(selected_classroom)
+        if len(heat_data) > 0:
+            fig = dependency_scatter(heat_data, title=f"학습 유형 분류 — {selected_classroom}")
+            show_chart(fig)
+
+            # 사분면 통계
+            st.markdown("### 그룹별 학생 수")
+            student_stats = heat_data.groupby("profile_id").agg(
+                avg_progress=("avg_progress", "mean"),
+            ).reset_index()
+
+            coding_phase = heat_data[heat_data["session"] >= 8]
+            if len(coding_phase) > 0:
+                coding_stats = coding_phase.groupby("profile_id")["n_activities"].sum().reset_index()
+                coding_stats.columns = ["profile_id", "coding_activities"]
+                student_stats = student_stats.merge(coding_stats, on="profile_id", how="left")
+                student_stats["coding_activities"] = student_stats["coding_activities"].fillna(0)
+            else:
+                student_stats["coding_activities"] = 0
+
+            comp_med = student_stats["avg_progress"].median()
+            act_med = student_stats["coding_activities"].median()
+
+            q_counts = {
+                "자기주도 학습": len(student_stats[(student_stats["avg_progress"] >= comp_med) & (student_stats["coding_activities"] < act_med)]),
+                "과도한 도움 사용": len(student_stats[(student_stats["avg_progress"] >= comp_med) & (student_stats["coding_activities"] >= act_med)]),
+                "참여 부족": len(student_stats[(student_stats["avg_progress"] < comp_med) & (student_stats["coding_activities"] < act_med)]),
+                "노력 중": len(student_stats[(student_stats["avg_progress"] < comp_med) & (student_stats["coding_activities"] >= act_med)]),
+            }
+            q_colors = ["#10B981", "#EF4444", "#94A3B8", "#F59E0B"]
+            cols = st.columns(4)
+            for i, (label, count) in enumerate(q_counts.items()):
+                cols[i].metric(label, f"{count}명")
+
+            # DR6: 유형별 실행 방안 피드백
+            if show_feedback:
+                fb_suggestions = generate_quadrant_feedback(q_counts)
+                if fb_suggestions:
+                    action_card(f"{selected_classroom} — 유형별 교수 전략", fb_suggestions)
+        else:
+            st.info("이 학급의 학생 데이터가 없습니다.")
+
+
+# ══════════════════════════════════════════════════════
+# 학생별 (Phase 1 피드백: 이전/다음 네비게이션 추가)
+# ══════════════════════════════════════════════════════
+elif view_level == "학생별":
+    heat_data = get_heatmap_for_classroom(selected_classroom)
+    if len(heat_data) > 0:
+        students = sorted(heat_data["profile_id"].unique())
+
+        # 학생 선택 (사이드바)
+        selected_student = st.sidebar.selectbox(
+            "학생 선택",
+            students,
+            format_func=lambda x: f"학생 {students.index(x)+1:02d}"
+        )
+
+        student_idx = students.index(selected_student) + 1
+        st.title(f"학생 {student_idx:02d}")
+        st.caption(f"{selected_classroom}")
+
+        # Phase 1 피드백: 이전/다음 학생 네비게이션 버튼
+        nav_c1, nav_c2, nav_c3 = st.columns([1, 3, 1])
+        with nav_c1:
+            if student_idx > 1:
+                if st.button(f"← 학생 {student_idx-1:02d}", use_container_width=True):
+                    st.session_state["student_nav"] = students[student_idx - 2]
+                    st.rerun()
+        with nav_c3:
+            if student_idx < len(students):
+                if st.button(f"학생 {student_idx+1:02d} →", use_container_width=True):
+                    st.session_state["student_nav"] = students[student_idx]
+                    st.rerun()
+
+        student_data = heat_data[heat_data["profile_id"] == selected_student]
+
+        # 요약 통계
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("평균 완료율", f"{student_data['avg_progress'].mean()*100:.1f}%")
+        c2.metric("참여 차시", f"{len(student_data)}/15")
+        c3.metric("총 활동 수", f"{int(student_data['n_activities'].sum())}개")
+
+        coding_data = student_data[student_data["session"] >= 8]
+        early_data = student_data[student_data["session"] < 8]
+        coding_intensity = coding_data["n_activities"].mean() if len(coding_data) > 0 else 0
+        early_intensity = early_data["n_activities"].mean() if len(early_data) > 0 else 0
+        trend = coding_intensity - early_intensity
+        c4.metric("활동 추세 (코딩 단계)",
+                 f"{trend:+.1f}",
+                 delta=f"{'증가' if trend > 0 else '감소'}")
+
+        # DR6: 학생 수준 피드백
+        if show_feedback:
+            avg_prog = student_data['avg_progress'].mean()
+            n_sessions = len(student_data)
+            student_suggestions = []
+            if avg_prog < 0.3:
+                student_suggestions.append("완료율이 매우 낮습니다 — 1:1 면담을 통해 학습 어려움 원인 파악 필요")
+                student_suggestions.append("기초 보충 자료 제공 및 또래 튜터링 매칭 권장")
+            elif avg_prog < 0.5:
+                student_suggestions.append("중간 수준 진도 — 어려운 차시에 대한 추가 지원 제공 권장")
+            if n_sessions < 10:
+                student_suggestions.append(f"참여 차시가 {n_sessions}/15로 낮습니다 — 출결 현황 확인 필요")
+            if trend < -2:
+                student_suggestions.append("코딩 단계에서 활동량이 급감 — 코딩 난이도 조정 또는 스캐폴딩 필요")
+            elif trend > 5:
+                student_suggestions.append("코딩 단계에서 활동량 급증 — AI 도움 의존도 확인 필요")
+            if student_suggestions:
+                action_card(f"학생 {student_idx:02d} 교수 전략", student_suggestions)
+
+        st.markdown("---")
+
+        info_card(
+            "차시별 완료율입니다. 배경색은 학습 단계를 나타냅니다: "
+            "<span style='color:#3B82F6'>이해(1-3)</span> → "
+            "<span style='color:#10B981'>분석(4-7)</span> → "
+            "<span style='color:#EF4444'>코딩(8-11)</span> → "
+            "<span style='color:#8B5CF6'>종합(12-15)</span>"
+        )
+
+        # 차시별 진도 바 차트
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=[f"{int(s)}차시" for s in student_data["session"]],
+            y=student_data["avg_progress"] * 100,
+            marker_color=["#059669" if p >= 0.7 else "#D97706" if p >= 0.3 else "#DC2626"
+                         for p in student_data["avg_progress"]],
+            hovertemplate="%{x}: %{y:.1f}%<extra></extra>",
+        ))
+
+        # 단계 배경
+        phases = [(0.5, 3.5, "#EFF6FF"), (3.5, 7.5, "#ECFDF5"),
+                  (7.5, 11.5, "#FEF2F2"), (11.5, 15.5, "#F5F3FF")]
+        for x0, x1, color in phases:
+            fig.add_vrect(x0=x0 - 1, x1=x1 - 1, fillcolor=color,
+                          opacity=0.3, layer="below", line_width=0)
+
+        fig.update_layout(
+            title=dict(text="차시별 완료율", x=0.5),
+            yaxis=dict(title="완료율 (%)", range=[0, 105]),
+            xaxis=dict(title="차시"),
+            height=350,
+            font=dict(family="Pretendard, Inter, sans-serif", size=13),
+            paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
+        )
+        show_chart(fig)
+
+        # 내보내기
+        student_export = student_data[["session", "avg_progress", "n_activities"]].copy()
+        student_export["avg_progress"] = (student_export["avg_progress"] * 100).round(1)
+        student_export.columns = ["차시", "완료율 (%)", "활동 수"]
+        download_dataframe(
+            student_export,
+            f"codleviz_student_{student_idx:02d}.csv",
+            "학생 데이터 다운로드"
+        )
+
+    else:
+        st.info("이 학급의 학생 데이터가 없습니다.")
