@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CodleViz — Learning Analytics Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Inter', sans-serif; }
+  body { background: #F8FAFC; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+  .nav-item { transition: all 0.15s ease; }
+  .nav-item:hover { background: rgba(255,255,255,0.08); }
+  .nav-item.active { background: rgba(37,99,235,0.15); border-right: 3px solid #2563EB; }
+  .card { transition: box-shadow 0.2s ease; }
+  .card:hover { box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+  .kpi-card { transition: transform 0.15s ease, box-shadow 0.2s ease; }
+  .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.1); }
+</style>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        brand: '#2563EB',
+      }
+    }
+  }
+}
+</script>
+</head>
+<body class="min-h-screen flex">
+
+<!-- Sidebar -->
+<aside class="w-60 bg-slate-900 text-white flex flex-col flex-shrink-0 min-h-screen">
+  <div class="px-5 py-5 border-b border-slate-700/50">
+    <div class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </div>
+      <span class="text-lg font-bold tracking-tight">CodleViz</span>
+    </div>
+    <p class="text-[11px] text-slate-400 mt-1.5 ml-[42px]">Learning Analytics</p>
+  </div>
+
+  <nav class="flex-1 py-3">
+    <div class="px-4 mb-2 mt-1">
+      <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Dashboard</span>
+    </div>
+    <a class="nav-item active flex items-center gap-3 px-5 py-2.5 text-sm font-medium text-white cursor-pointer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Overview
+    </a>
+    <a class="nav-item flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 cursor-pointer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Schools
+    </a>
+    <a class="nav-item flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 cursor-pointer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+      Classrooms
+    </a>
+    <a class="nav-item flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 cursor-pointer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4-4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Students
+    </a>
+    <a class="nav-item flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 cursor-pointer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Analytics
+    </a>
+
+    <div class="px-4 mb-2 mt-6">
+      <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Curriculum</span>
+    </div>
+    <a class="nav-item flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 cursor-pointer">
+      <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+      Marine Debris
+    </a>
+    <a class="nav-item flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 cursor-pointer">
+      <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+      Climate Change
+    </a>
+    <a class="nav-item flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 cursor-pointer">
+      <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+      Food Security
+    </a>
+  </nav>
+
+  <!-- DR7: Settings -->
+  <div class="px-4 mb-2 mt-4">
+    <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Settings</span>
+  </div>
+  <div class="px-5 space-y-2.5 text-[12px] text-slate-400">
+    <label class="flex items-center justify-between cursor-pointer">
+      <span>AI-Adjusted Scores</span>
+      <div class="w-8 h-4 bg-blue-600 rounded-full relative"><div class="w-3 h-3 bg-white rounded-full absolute top-0.5 right-0.5"></div></div>
+    </label>
+    <label class="flex items-center justify-between cursor-pointer">
+      <span>XAI Insights</span>
+      <div class="w-8 h-4 bg-blue-600 rounded-full relative"><div class="w-3 h-3 bg-white rounded-full absolute top-0.5 right-0.5"></div></div>
+    </label>
+    <label class="flex items-center justify-between cursor-pointer">
+      <span>Recommendations</span>
+      <div class="w-8 h-4 bg-slate-600 rounded-full relative"><div class="w-3 h-3 bg-white rounded-full absolute top-0.5 left-0.5"></div></div>
+    </label>
+  </div>
+
+  <div class="px-5 py-4 border-t border-slate-700/50 mt-4">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-xs font-semibold">ES</div>
+      <div>
+        <div class="text-sm font-medium">E. Eom</div>
+        <div class="text-[11px] text-slate-400">Researcher</div>
+      </div>
+    </div>
+    <!-- DR8: Ethics -->
+    <div class="mt-3 flex items-center gap-2 text-[10px] text-slate-500">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      <span>All data anonymized. Educational use only.</span>
+    </div>
+  </div>
+</aside>
+
+<!-- Main Content -->
+<main class="flex-1 overflow-y-auto">
+  <!-- Top Bar -->
+  <header class="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-slate-200/60 px-8 py-4 flex items-center justify-between">
+    <div>
+      <h1 class="text-xl font-bold text-slate-900">National Overview</h1>
+      <p class="text-sm text-slate-500 mt-0.5">K-12 Data Science Education Program &middot; 2024 Cohort</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 bg-slate-100 rounded-lg px-3 py-2 text-sm text-slate-500">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Search schools...
+      </div>
+      <button class="flex items-center gap-2 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export
+      </button>
+    </div>
+  </header>
+
+  <div class="px-8 py-6 space-y-6" id="dashboard-content">
+    <!-- KPI Cards -->
+    <div id="kpi-row" class="grid grid-cols-5 gap-5"></div>
+
+    <!-- LLM Insight Panel -->
+    <div class="grid grid-cols-4 gap-4">
+      <div class="bg-white rounded-lg border-l-4 border-red-500 shadow-sm px-4 py-3">
+        <div class="flex items-start gap-2">
+          <span class="text-base">⚠️</span>
+          <div>
+            <p class="text-xs font-semibold text-slate-800">Peak AI Usage at Session 7</p>
+            <p class="text-[11px] text-slate-500 mt-0.5">2,374 requests from 219 students — highest across all sessions</p>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white rounded-lg border-l-4 border-amber-500 shadow-sm px-4 py-3">
+        <div class="flex items-start gap-2">
+          <span class="text-base">📊</span>
+          <div>
+            <p class="text-xs font-semibold text-slate-800">30 Students Score Inflated</p>
+            <p class="text-[11px] text-slate-500 mt-0.5">Completion scores inflated by &gt;10%p due to AI tutor dependency</p>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white rounded-lg border-l-4 border-amber-500 shadow-sm px-4 py-3">
+        <div class="flex items-start gap-2">
+          <span class="text-base">📉</span>
+          <div>
+            <p class="text-xs font-semibold text-slate-800">Coding Cliff in 8 Schools</p>
+            <p class="text-[11px] text-slate-500 mt-0.5">8 of 42 schools show &gt;15%p completion drop at Tier 2→3 transition</p>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white rounded-lg border-l-4 border-blue-500 shadow-sm px-4 py-3">
+        <div class="flex items-start gap-2">
+          <span class="text-base">💡</span>
+          <div>
+            <p class="text-xs font-semibold text-slate-800">Food Security Leads in CT</p>
+            <p class="text-[11px] text-slate-500 mt-0.5">CT scores: Food Security 61.9% &gt; Ocean Debris 44.3% &gt; Climate Change 35.8%</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Row 1: School Ranking + Radar -->
+    <div class="grid grid-cols-5 gap-5">
+      <div class="col-span-3 bg-white rounded-xl border border-slate-200/60 shadow-sm card">
+        <div class="px-6 pt-5 pb-3 flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-semibold text-slate-900">School Performance Ranking</h3>
+            <p class="text-xs text-slate-400 mt-0.5">Average learning progress by school</p>
+          </div>
+          <div class="flex items-center gap-4 text-xs">
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>Marine Debris</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>Climate Change</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>Food Security</span>
+          </div>
+        </div>
+        <div id="school-ranking" class="px-2 pb-2"></div>
+        <div class="mx-6 mb-4 px-3 py-2.5 bg-blue-50 rounded-lg border border-blue-100">
+          <p class="text-[11px] text-blue-800"><span class="font-semibold">💡 Recommendation:</span> Schools below 30% may need additional scaffolding. Consider introducing lightweight coding activities earlier in Tier 2.</p>
+        </div>
+      </div>
+      <div class="col-span-2 bg-white rounded-xl border border-slate-200/60 shadow-sm card">
+        <div class="px-6 pt-5 pb-2">
+          <h3 class="text-sm font-semibold text-slate-900">Competency Profile</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Top / Average / Bottom school comparison</p>
+        </div>
+        <div id="radar-chart" class="flex items-center justify-center"></div>
+      </div>
+    </div>
+
+    <!-- Charts Row 2: AI Tutor Usage + Dependency -->
+    <div class="grid grid-cols-2 gap-5">
+      <div class="bg-white rounded-xl border border-slate-200/60 shadow-sm card">
+        <div class="px-6 pt-5 pb-3 flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-semibold text-slate-900">AI Tutor Usage by Session</h3>
+            <p class="text-xs text-slate-400 mt-0.5">LLM request volume and student participation</p>
+          </div>
+          <div class="flex items-center gap-4 text-xs">
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded bg-blue-500"></span>LLM Requests</span>
+            <span class="flex items-center gap-1.5"><span class="w-4 h-0.5 bg-orange-400 rounded"></span>Students</span>
+          </div>
+        </div>
+        <div id="llm-by-session" class="px-2 pb-4"></div>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200/60 shadow-sm card">
+        <div class="px-6 pt-5 pb-3">
+          <h3 class="text-sm font-semibold text-slate-900">AI Dependency Classification</h3>
+          <p class="text-xs text-slate-400 mt-0.5">709 students classified by completion &times; AI usage</p>
+        </div>
+        <div id="ai-dependency" class="px-4 pb-4 flex items-center justify-center"></div>
+      </div>
+    </div>
+
+    <!-- Charts Row 3: Learning Journey + Competency Bars -->
+    <div class="grid grid-cols-5 gap-5">
+      <div class="col-span-3 bg-white rounded-xl border border-slate-200/60 shadow-sm card">
+        <div class="px-6 pt-5 pb-3 flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-semibold text-slate-900">Learning Journey</h3>
+            <p class="text-xs text-slate-400 mt-0.5">Progress across 15 sessions &middot; Top vs Bottom schools</p>
+          </div>
+          <div class="flex items-center gap-3 text-xs">
+            <span class="flex items-center gap-1.5"><span class="w-6 h-0.5 bg-blue-500 rounded"></span>Top School</span>
+            <span class="flex items-center gap-1.5"><span class="w-6 h-0.5 bg-slate-400 rounded"></span>National Avg</span>
+            <span class="flex items-center gap-1.5"><span class="w-6 h-0.5 bg-red-400 rounded" style="opacity:0.6"></span>Bottom School</span>
+          </div>
+        </div>
+        <div id="learning-journey" class="px-2 pb-2"></div>
+        <div class="mx-6 mb-4 px-3 py-2.5 bg-amber-50 rounded-lg border border-amber-100">
+          <p class="text-[11px] text-amber-800"><span class="font-semibold">⚠️ Coding Cliff Alert:</span> The CODAP→Python transition (S10→S11) is the critical drop-off point. 8 schools show &gt;15%p drops. Consider blending Python exercises into Tier 2.</p>
+        </div>
+      </div>
+      <div class="col-span-2 bg-white rounded-xl border border-slate-200/60 shadow-sm card">
+        <div class="px-6 pt-5 pb-3 flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-semibold text-slate-900">Competency Scores</h3>
+            <p class="text-xs text-slate-400 mt-0.5">National average across 5 competency dimensions</p>
+          </div>
+          <div id="competency-toggle" class="flex items-center bg-slate-100 rounded-lg p-0.5 text-xs font-medium">
+            <button onclick="toggleCompetencyView('raw')" id="btn-raw" class="px-3 py-1.5 rounded-md bg-white text-slate-900 shadow-sm transition-all">Raw</button>
+            <button onclick="toggleCompetencyView('adjusted')" id="btn-adjusted" class="px-3 py-1.5 rounded-md text-slate-500 transition-all">AI-Adjusted</button>
+          </div>
+        </div>
+        <div id="competency-bars" class="px-4 pb-4"></div>
+      </div>
+    </div>
+
+    <!-- Charts Row 4: XAI Cliff Analysis -->
+    <div class="grid grid-cols-5 gap-5">
+      <div class="col-span-3 bg-white rounded-xl border border-slate-200/60 shadow-sm card">
+        <div class="px-6 pt-5 pb-3 flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-semibold text-slate-900">XAI: Cliff Risk Factors</h3>
+            <p class="text-xs text-slate-400 mt-0.5">SHAP-based feature importance for predicting learning cliffs</p>
+          </div>
+          <span class="text-[10px] font-medium text-violet-600 bg-violet-50 px-2 py-1 rounded-full">XGBoost + SHAP</span>
+        </div>
+        <div id="shap-importance" class="px-4 pb-4"></div>
+      </div>
+      <div class="col-span-2 bg-white rounded-xl border border-slate-200/60 shadow-sm card">
+        <div class="px-6 pt-5 pb-3">
+          <h3 class="text-sm font-semibold text-slate-900">XAI: Worst Cliff Explanation</h3>
+          <p class="text-xs text-slate-400 mt-0.5">School_37 Session 12: −77.1%p drop (XGBoost prob=0.997)</p>
+        </div>
+        <div class="px-6 pb-5 space-y-2.5">
+          <div class="flex items-center gap-3">
+            <div class="w-1.5 h-10 bg-red-500 rounded-full"></div>
+            <div class="flex-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-800">Prior Completion Rate</span>
+                <span class="text-[10px] font-bold text-red-600">+3.48 risk</span>
+              </div>
+              <p class="text-[10px] text-slate-500 mt-0.5">100% prior completion → any drop is catastrophic (value=1.0)</p>
+              <div class="w-full h-1.5 bg-slate-100 rounded-full mt-1"><div class="h-1.5 bg-red-500 rounded-full" style="width:100%"></div></div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-1.5 h-10 bg-red-500 rounded-full"></div>
+            <div class="flex-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-800">% Students Below 30%</span>
+                <span class="text-[10px] font-bold text-red-600">+2.22 risk</span>
+              </div>
+              <p class="text-[10px] text-slate-500 mt-0.5">80% of students already below 30% completion at this point</p>
+              <div class="w-full h-1.5 bg-slate-100 rounded-full mt-1"><div class="h-1.5 bg-red-500 rounded-full" style="width:64%"></div></div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-1.5 h-10 bg-red-500 rounded-full"></div>
+            <div class="flex-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-800">Completion Spread</span>
+                <span class="text-[10px] font-bold text-red-600">+1.01 risk</span>
+              </div>
+              <p class="text-[10px] text-slate-500 mt-0.5">High variance among students signals classroom-wide instability</p>
+              <div class="w-full h-1.5 bg-slate-100 rounded-full mt-1"><div class="h-1.5 bg-red-500 rounded-full" style="width:29%"></div></div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-1.5 h-10 bg-amber-500 rounded-full"></div>
+            <div class="flex-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-800">Phase Transition</span>
+                <span class="text-[10px] font-bold text-amber-600">+0.31 risk</span>
+              </div>
+              <p class="text-[10px] text-slate-500 mt-0.5">Coding→Synthesis boundary adds cognitive complexity</p>
+              <div class="w-full h-1.5 bg-slate-100 rounded-full mt-1"><div class="h-1.5 bg-amber-500 rounded-full" style="width:9%"></div></div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-1.5 h-10 bg-emerald-500 rounded-full"></div>
+            <div class="flex-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-800">Board Activity %</span>
+                <span class="text-[10px] font-bold text-emerald-600">−0.13 protective</span>
+              </div>
+              <p class="text-[10px] text-slate-500 mt-0.5">Discussion activities provide collaborative scaffolding</p>
+              <div class="w-full h-1.5 bg-slate-100 rounded-full mt-1"><div class="h-1.5 bg-emerald-500 rounded-full" style="width:4%"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="mx-6 mb-4 px-3 py-2.5 bg-violet-50 rounded-lg border border-violet-100">
+          <p class="text-[11px] text-violet-800"><span class="font-semibold">🔬 XAI Insight:</span> Cliffs are driven by student dispersion (80% below 30%) and high prior completion creating steeper fall potential. Model accuracy: 98.8%, AUC: 0.999.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const CURR_COLOR = { '해양쓰레기': '#3B82F6', '기후변화': '#10B981', '식량안보': '#F59E0B' };
+const CURR_LABEL = { '해양쓰레기': 'Marine Debris', '기후변화': 'Climate Change', '식량안보': 'Food Security' };
+const COMP_COLOR = { DC: '#3B82F6', DA: '#10B981', DV: '#F59E0B', DI: '#8B5CF6', CT: '#EF4444' };
+const COMP_LABEL = { DC: 'Data Collection', DA: 'Data Analysis', DV: 'Data Visualization', DI: 'Data Interpretation', CT: 'Computational Thinking' };
+const PHASE_BG = [
+  { start: 1, end: 3, label: 'Comprehension', color: '#DBEAFE', text: '#2563EB' },
+  { start: 4, end: 7, label: 'Analysis', color: '#D1FAE5', text: '#10B981' },
+  { start: 8, end: 11, label: 'Coding', color: '#FEE2E2', text: '#EF4444' },
+  { start: 12, end: 15, label: 'Synthesis', color: '#EDE9FE', text: '#8B5CF6' },
+];
+
+const QUAD_COLOR = { 'Independent': '#3B82F6', 'AI-Scaffolded': '#10B981', 'AI-Dependent': '#EF4444', 'Disengaged': '#94A3B8' };
+let _globalData = null;
+let _competencyView = 'raw';
+
+d3.json('data.json').then(data => {
+  _globalData = data;
+  buildKPIs(data);
+  buildSchoolRanking(data);
+  buildRadar(data);
+  buildLLMBySession(data);
+  buildAIDependency(data);
+  buildLearningJourney(data);
+  buildCompetencyBars(data);
+  buildSHAPImportance();
+});
+
+function toggleCompetencyView(mode) {
+  _competencyView = mode;
+  const btnRaw = document.getElementById('btn-raw');
+  const btnAdj = document.getElementById('btn-adjusted');
+  if (mode === 'raw') {
+    btnRaw.className = 'px-3 py-1.5 rounded-md bg-white text-slate-900 shadow-sm transition-all';
+    btnAdj.className = 'px-3 py-1.5 rounded-md text-slate-500 transition-all';
+  } else {
+    btnRaw.className = 'px-3 py-1.5 rounded-md text-slate-500 transition-all';
+    btnAdj.className = 'px-3 py-1.5 rounded-md bg-white text-slate-900 shadow-sm transition-all';
+  }
+  document.getElementById('competency-bars').innerHTML = '';
+  buildCompetencyBars(_globalData);
+}
+
+function buildKPIs(data) {
+  const schools = new Set(data.summary.map(d => d.school));
+  const students = d3.sum(data.summary, d => d.n_students);
+  const avgComp = d3.mean(data.summary, d => d.avg_progress);
+  const totalLLM = d3.sum(data.llm_per_student, d => d.total_llm);
+  const llmStudents = data.llm_per_student.length;
+  const totalStudents = data.ai_dependency.length;
+  const llmPct = ((llmStudents / totalStudents) * 100).toFixed(0);
+  const kpis = [
+    { label: 'Schools', value: schools.size, icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z', color: 'blue', change: '+3 this semester' },
+    { label: 'Students', value: students.toLocaleString(), icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2', color: 'emerald', change: 'Across all programs' },
+    { label: 'Sessions', value: '15', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', color: 'violet', change: 'Per curriculum' },
+    { label: 'Avg. Completion', value: (avgComp * 100).toFixed(1) + '%', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', color: 'amber', change: 'National average' },
+    { label: 'AI Tutor Usage', value: totalLLM.toLocaleString(), icon: 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z', color: 'rose', change: llmStudents + ' of ' + totalStudents + ' students (' + llmPct + '%)' },
+  ];
+  const colorMap = { blue: ['bg-blue-50', 'text-blue-600', 'bg-blue-100'], emerald: ['bg-emerald-50', 'text-emerald-600', 'bg-emerald-100'], violet: ['bg-violet-50', 'text-violet-600', 'bg-violet-100'], amber: ['bg-amber-50', 'text-amber-600', 'bg-amber-100'], rose: ['bg-rose-50', 'text-rose-600', 'bg-rose-100'] };
+  const row = document.getElementById('kpi-row');
+  kpis.forEach(k => {
+    const c = colorMap[k.color];
+    row.innerHTML += `
+      <div class="kpi-card bg-white rounded-xl border border-slate-200/60 shadow-sm px-5 py-5 flex items-start gap-4">
+        <div class="${c[0]} ${c[1]} rounded-lg p-2.5">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${k.icon}"/></svg>
+        </div>
+        <div>
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide">${k.label}</p>
+          <p class="text-2xl font-bold text-slate-900 mt-0.5">${k.value}</p>
+          <p class="text-[11px] text-slate-400 mt-1">${k.change}</p>
+        </div>
+      </div>`;
+  });
+}
+
+function buildSchoolRanking(data) {
+  // Aggregate by school: avg progress, dominant curriculum
+  const schoolMap = {};
+  data.summary.forEach(d => {
+    if (!schoolMap[d.school]) schoolMap[d.school] = { progress: [], curricula: {} };
+    schoolMap[d.school].progress.push(d.avg_progress);
+    schoolMap[d.school].curricula[d.curriculum] = (schoolMap[d.school].curricula[d.curriculum] || 0) + 1;
+  });
+  let schools = Object.entries(schoolMap).map(([name, v]) => {
+    const dominant = Object.entries(v.curricula).sort((a,b) => b[1]-a[1])[0][0];
+    return { name, progress: d3.mean(v.progress), curriculum: dominant };
+  }).sort((a,b) => b.progress - a.progress).slice(0, 20);
+
+  const container = document.getElementById('school-ranking');
+  const margin = { top: 8, right: 55, bottom: 24, left: 80 };
+  const width = container.clientWidth - margin.left - margin.right;
+  const height = schools.length * 24;
+  const svg = d3.select(container).append('svg')
+    .attr('width', width + margin.left + margin.right)
+    .attr('height', height + margin.top + margin.bottom);
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const x = d3.scaleLinear().domain([0, 1]).range([0, width]);
+  const y = d3.scaleBand().domain(schools.map(d => d.name)).range([0, height]).padding(0.35);
+
+  // Grid lines
+  g.selectAll('.grid').data(x.ticks(5)).enter().append('line')
+    .attr('x1', d => x(d)).attr('x2', d => x(d))
+    .attr('y1', 0).attr('y2', height)
+    .attr('stroke', '#F1F5F9').attr('stroke-width', 1);
+
+  // Bars
+  g.selectAll('rect').data(schools).enter().append('rect')
+    .attr('x', 0).attr('y', d => y(d.name))
+    .attr('width', d => x(d.progress)).attr('height', y.bandwidth())
+    .attr('fill', d => CURR_COLOR[d.curriculum])
+    .attr('rx', 3).attr('opacity', 0.85);
+
+  // Labels
+  g.selectAll('.label').data(schools).enter().append('text')
+    .attr('x', -8).attr('y', d => y(d.name) + y.bandwidth()/2)
+    .attr('text-anchor', 'end').attr('dominant-baseline', 'central')
+    .attr('font-size', 11).attr('fill', '#475569').attr('font-weight', 500)
+    .text(d => d.name.replace('School_', 'S'));
+
+  // Value labels
+  g.selectAll('.val').data(schools).enter().append('text')
+    .attr('x', d => x(d.progress) + 6).attr('y', d => y(d.name) + y.bandwidth()/2)
+    .attr('dominant-baseline', 'central')
+    .attr('font-size', 10).attr('fill', '#94A3B8').attr('font-weight', 500)
+    .text(d => (d.progress * 100).toFixed(0) + '%');
+
+  // X axis
+  g.append('g').attr('transform', `translate(0,${height})`).call(d3.axisBottom(x).ticks(5).tickFormat(d => (d*100)+'%'))
+    .call(g => g.select('.domain').remove())
+    .call(g => g.selectAll('.tick line').attr('stroke', '#E2E8F0'))
+    .call(g => g.selectAll('.tick text').attr('fill', '#94A3B8').attr('font-size', 10));
+}
+
+function buildRadar(data) {
+  // Compute competency profiles for top, average, bottom schools
+  const schoolMap = {};
+  data.summary.forEach(d => {
+    if (!schoolMap[d.school]) schoolMap[d.school] = [];
+    schoolMap[d.school].push(d.avg_progress);
+  });
+  const schoolAvg = Object.entries(schoolMap).map(([s,v]) => ({ school: s, avg: d3.mean(v) })).sort((a,b) => b.avg - a.avg);
+  const topSchool = schoolAvg[0].school;
+  const midSchool = schoolAvg[Math.floor(schoolAvg.length/2)].school;
+  const botSchool = schoolAvg[schoolAvg.length - 1].school;
+
+  const compDims = ['DC', 'DA', 'DV', 'DI', 'CT'];
+  function getProfile(school) {
+    const vals = {};
+    data.competency.filter(d => d.classroom_name.startsWith(school + ' ')).forEach(d => {
+      if (!vals[d.competency]) vals[d.competency] = [];
+      vals[d.competency].push(d.avg_progress);
+    });
+    return compDims.map(c => vals[c] ? d3.mean(vals[c]) : 0);
+  }
+
+  const profiles = [
+    { label: 'Top ('+topSchool.replace('School_','S')+')', values: getProfile(topSchool), color: '#2563EB', opacity: 0.2 },
+    { label: 'Average ('+midSchool.replace('School_','S')+')', values: getProfile(midSchool), color: '#64748B', opacity: 0.12 },
+    { label: 'Bottom ('+botSchool.replace('School_','S')+')', values: getProfile(botSchool), color: '#EF4444', opacity: 0.12 },
+  ];
+
+  const container = document.getElementById('radar-chart');
+  const size = 300;
+  const cx = size / 2, cy = size / 2;
+  const radius = 110;
+  const svg = d3.select(container).append('svg').attr('width', size).attr('height', size + 40);
+  const g = svg.append('g').attr('transform', `translate(${cx},${cy + 5})`);
+  const angleSlice = (2 * Math.PI) / compDims.length;
+
+  // Grid circles
+  [0.2, 0.4, 0.6, 0.8, 1.0].forEach(level => {
+    g.append('circle').attr('r', radius * level).attr('fill', 'none').attr('stroke', '#E2E8F0').attr('stroke-width', 0.8);
+    if (level < 1.0) {
+      g.append('text').attr('x', 4).attr('y', -radius * level + 4)
+        .attr('font-size', 9).attr('fill', '#CBD5E1')
+        .text((level * 100).toFixed(0) + '%');
+    }
+  });
+
+  // Axes
+  compDims.forEach((comp, i) => {
+    const angle = angleSlice * i - Math.PI / 2;
+    const lx = Math.cos(angle) * radius;
+    const ly = Math.sin(angle) * radius;
+    g.append('line').attr('x1', 0).attr('y1', 0).attr('x2', lx).attr('y2', ly)
+      .attr('stroke', '#E2E8F0').attr('stroke-width', 0.8);
+    const labelR = radius + 18;
+    g.append('text')
+      .attr('x', Math.cos(angle) * labelR).attr('y', Math.sin(angle) * labelR)
+      .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
+      .attr('font-size', 11).attr('font-weight', 600).attr('fill', COMP_COLOR[comp])
+      .text(comp);
+  });
+
+  // Radar areas
+  const radarLine = d3.lineRadial()
+    .radius(d => d * radius)
+    .angle((d, i) => i * angleSlice)
+    .curve(d3.curveLinearClosed);
+
+  profiles.forEach(p => {
+    g.append('path')
+      .datum(p.values)
+      .attr('d', radarLine)
+      .attr('fill', p.color).attr('fill-opacity', p.opacity)
+      .attr('stroke', p.color).attr('stroke-width', 2).attr('stroke-opacity', 0.8);
+    p.values.forEach((v, i) => {
+      const angle = angleSlice * i - Math.PI / 2;
+      g.append('circle')
+        .attr('cx', Math.cos(angle) * v * radius)
+        .attr('cy', Math.sin(angle) * v * radius)
+        .attr('r', 3).attr('fill', p.color);
+    });
+  });
+
+  // Legend
+  const legend = svg.append('g').attr('transform', `translate(${cx - 100},${size + 10})`);
+  profiles.forEach((p, i) => {
+    const lg = legend.append('g').attr('transform', `translate(${i * 100}, 0)`);
+    lg.append('line').attr('x1', 0).attr('y1', 0).attr('x2', 14).attr('y2', 0)
+      .attr('stroke', p.color).attr('stroke-width', 2.5);
+    lg.append('text').attr('x', 18).attr('y', 0).attr('dominant-baseline', 'central')
+      .attr('font-size', 9.5).attr('fill', '#64748B').attr('font-weight', 500)
+      .text(p.label);
+  });
+}
+
+function buildLearningJourney(data) {
+  // Compute per-session aggregates for top school, bottom school, and national avg
+  const schoolMap = {};
+  data.summary.forEach(d => {
+    if (!schoolMap[d.school]) schoolMap[d.school] = [];
+    schoolMap[d.school].push(d.avg_progress);
+  });
+  const schoolAvg = Object.entries(schoolMap).map(([s,v]) => ({ school: s, avg: d3.mean(v) })).sort((a,b) => b.avg - a.avg);
+  const topSchool = schoolAvg[0].school;
+  const botSchool = schoolAvg[schoolAvg.length - 1].school;
+
+  function getSessionLine(schoolFilter) {
+    const sessMap = {};
+    data.session.filter(d => schoolFilter(d.classroom_name)).forEach(d => {
+      const s = Math.round(d.session);
+      if (!sessMap[s]) sessMap[s] = [];
+      sessMap[s].push(d.completion_rate);
+    });
+    return d3.range(1, 16).map(s => ({ session: s, rate: sessMap[s] ? d3.mean(sessMap[s]) : null })).filter(d => d.rate !== null);
+  }
+
+  const topLine = getSessionLine(name => name.startsWith(topSchool + ' '));
+  const botLine = getSessionLine(name => name.startsWith(botSchool + ' '));
+  const avgLine = getSessionLine(() => true);
+
+  const container = document.getElementById('learning-journey');
+  const margin = { top: 12, right: 30, bottom: 36, left: 50 };
+  const width = container.clientWidth - margin.left - margin.right;
+  const height = 240;
+  const svg = d3.select(container).append('svg')
+    .attr('width', width + margin.left + margin.right)
+    .attr('height', height + margin.top + margin.bottom);
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const x = d3.scaleLinear().domain([1, 15]).range([0, width]);
+  const y = d3.scaleLinear().domain([0, 1]).range([height, 0]);
+
+  // Phase backgrounds
+  PHASE_BG.forEach(phase => {
+    g.append('rect')
+      .attr('x', x(phase.start) - (width/14)*0.5)
+      .attr('y', 0)
+      .attr('width', x(phase.end) - x(phase.start) + (width/14))
+      .attr('height', height)
+      .attr('fill', phase.color).attr('opacity', 0.4).attr('rx', 4);
+    g.append('text')
+      .attr('x', (x(phase.start) + x(phase.end)) / 2)
+      .attr('y', -1)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', 9).attr('font-weight', 600).attr('fill', phase.text)
+      .text(phase.label);
+  });
+
+  // Axes
+  g.append('g').attr('transform', `translate(0,${height})`)
+    .call(d3.axisBottom(x).ticks(15).tickFormat(d => 'S' + d))
+    .call(g => g.select('.domain').attr('stroke', '#E2E8F0'))
+    .call(g => g.selectAll('.tick line').attr('stroke', '#E2E8F0'))
+    .call(g => g.selectAll('.tick text').attr('fill', '#94A3B8').attr('font-size', 10));
+
+  g.append('g')
+    .call(d3.axisLeft(y).ticks(5).tickFormat(d => (d*100)+'%'))
+    .call(g => g.select('.domain').remove())
+    .call(g => g.selectAll('.tick line').attr('stroke', '#F1F5F9').attr('x2', width))
+    .call(g => g.selectAll('.tick text').attr('fill', '#94A3B8').attr('font-size', 10));
+
+  // Axis label
+  g.append('text').attr('transform', 'rotate(-90)')
+    .attr('x', -height/2).attr('y', -38)
+    .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', '#94A3B8')
+    .text('Completion Rate');
+
+  g.append('text')
+    .attr('x', width/2).attr('y', height + 32)
+    .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', '#94A3B8')
+    .text('Session');
+
+  const line = d3.line().x(d => x(d.session)).y(d => y(d.rate)).curve(d3.curveMonotoneX);
+
+  // Draw lines
+  const lines = [
+    { data: botLine, color: '#EF4444', width: 2, dash: '4,3', opacity: 0.6 },
+    { data: avgLine, color: '#94A3B8', width: 2, dash: '', opacity: 0.8 },
+    { data: topLine, color: '#2563EB', width: 2.5, dash: '', opacity: 1 },
+  ];
+  lines.forEach(l => {
+    g.append('path').datum(l.data).attr('d', line)
+      .attr('fill', 'none').attr('stroke', l.color).attr('stroke-width', l.width)
+      .attr('stroke-opacity', l.opacity).attr('stroke-dasharray', l.dash);
+    // End dots
+    if (l.data.length) {
+      const last = l.data[l.data.length - 1];
+      g.append('circle').attr('cx', x(last.session)).attr('cy', y(last.rate))
+        .attr('r', 4).attr('fill', l.color).attr('opacity', l.opacity);
+    }
+  });
+}
+
+function buildCompetencyBars(data) {
+  const compDims = ['DC', 'DA', 'DV', 'DI', 'CT'];
+  const isAdjusted = _competencyView === 'adjusted';
+
+  // Build value maps for both views
+  const compRaw = {};
+  compDims.forEach(c => {
+    const vals = data.competency.filter(d => d.competency === c).map(d => d.avg_progress);
+    compRaw[c] = d3.mean(vals);
+  });
+  const compAdj = {};
+  const compDiff = {};
+  if (data.competency_raw_vs_adjusted) {
+    data.competency_raw_vs_adjusted.forEach(d => {
+      compAdj[d.competency] = d.adjusted;
+      compDiff[d.competency] = d.diff;
+    });
+  }
+
+  const compAvg = isAdjusted ? compAdj : compRaw;
+
+  const container = document.getElementById('competency-bars');
+  const margin = { top: 10, right: 20, bottom: 36, left: 20 };
+  const width = container.clientWidth - margin.left - margin.right;
+  const height = 240;
+  const svg = d3.select(container).append('svg')
+    .attr('width', width + margin.left + margin.right)
+    .attr('height', height + margin.top + margin.bottom);
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const x = d3.scaleBand().domain(compDims).range([0, width]).padding(0.35);
+  const y = d3.scaleLinear().domain([0, 0.8]).range([height, 0]);
+
+  // Grid
+  y.ticks(4).forEach(t => {
+    g.append('line').attr('x1', 0).attr('x2', width)
+      .attr('y1', y(t)).attr('y2', y(t))
+      .attr('stroke', '#F1F5F9').attr('stroke-width', 1);
+    g.append('text').attr('x', -4).attr('y', y(t))
+      .attr('text-anchor', 'end').attr('dominant-baseline', 'central')
+      .attr('font-size', 9).attr('fill', '#CBD5E1')
+      .text((t*100).toFixed(0) + '%');
+  });
+
+  // Bars
+  compDims.forEach(c => {
+    const bw = x.bandwidth();
+    const val = compAvg[c] || 0;
+    const bh = height - y(val);
+
+    // Ghost bar for raw reference when adjusted
+    if (isAdjusted && compRaw[c]) {
+      g.append('rect')
+        .attr('x', x(c)).attr('y', y(compRaw[c]))
+        .attr('width', bw).attr('height', height - y(compRaw[c]))
+        .attr('fill', COMP_COLOR[c]).attr('rx', 6).attr('opacity', 0.15);
+    }
+
+    g.append('rect')
+      .attr('x', x(c)).attr('y', y(val))
+      .attr('width', bw).attr('height', bh)
+      .attr('fill', COMP_COLOR[c]).attr('rx', 6).attr('opacity', 0.85);
+
+    // Value on top
+    g.append('text')
+      .attr('x', x(c) + bw/2).attr('y', y(val) - (isAdjusted ? 18 : 8))
+      .attr('text-anchor', 'middle')
+      .attr('font-size', 13).attr('font-weight', 700).attr('fill', COMP_COLOR[c])
+      .text((val * 100).toFixed(1) + '%');
+
+    // Diff annotation when adjusted
+    if (isAdjusted && compDiff[c] !== undefined) {
+      g.append('text')
+        .attr('x', x(c) + bw/2).attr('y', y(val) - 4)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', 10).attr('font-weight', 600).attr('fill', '#EF4444')
+        .text(compDiff[c].toFixed(1) + '%p');
+    }
+
+    // Label
+    g.append('text')
+      .attr('x', x(c) + bw/2).attr('y', height + 16)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', 12).attr('font-weight', 600).attr('fill', COMP_COLOR[c])
+      .text(c);
+
+    g.append('text')
+      .attr('x', x(c) + bw/2).attr('y', height + 30)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', 8).attr('fill', '#94A3B8')
+      .text(COMP_LABEL[c].split(' ').slice(1).join(' '));
+  });
+}
+
+function buildSHAPImportance() {
+  // REAL values from XGBoost+SHAP (accuracy=0.988, AUC=0.999)
+  const features = [
+    { f: 'Prior Completion Rate', v: 2.20, dir: 'risk' },
+    { f: '% Students Below 30%', v: 1.67, dir: 'risk' },
+    { f: 'Student Completion Spread', v: 0.89, dir: 'risk' },
+    { f: 'Lowest Student Completion', v: 0.26, dir: 'risk' },
+    { f: 'Prior 3-Session Trend', v: 0.26, dir: 'protective' },
+    { f: 'CODAP %', v: 0.16, dir: 'protective' },
+    { f: 'Student Count', v: 0.15, dir: 'risk' },
+    { f: 'Phase Transition', v: 0.12, dir: 'risk' },
+  ];
+  const container = document.getElementById('shap-importance');
+  const margin = { top: 8, right: 50, bottom: 20, left: 130 };
+  const width = container.clientWidth - margin.left - margin.right;
+  const height = features.length * 28;
+  const svg = d3.select(container).append('svg')
+    .attr('width', width + margin.left + margin.right)
+    .attr('height', height + margin.top + margin.bottom);
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const x = d3.scaleLinear().domain([0, 2.5]).range([0, width]);
+  const y = d3.scaleBand().domain(features.map(d => d.f)).range([0, height]).padding(0.3);
+
+  g.selectAll('rect').data(features).join('rect')
+    .attr('x', 0).attr('y', d => y(d.f))
+    .attr('width', d => x(d.v)).attr('height', y.bandwidth())
+    .attr('fill', d => d.dir === 'risk' ? '#EF4444' : '#10B981')
+    .attr('opacity', 0.75).attr('rx', 3);
+
+  g.selectAll('.label').data(features).join('text')
+    .attr('x', d => x(d.v) + 5).attr('y', d => y(d.f) + y.bandwidth() / 2)
+    .attr('dy', '0.35em').attr('font-size', 10).attr('fill', '#555').attr('font-weight', '600')
+    .text(d => d.v.toFixed(2));
+
+  g.append('g').call(d3.axisLeft(y)).selectAll('text')
+    .attr('font-size', 10).attr('fill', '#334155');
+  g.selectAll('.domain, .tick line').remove();
+
+  // Legend
+  const lg = g.append('g').attr('transform', `translate(${width - 120}, -2)`);
+  lg.append('rect').attr('width', 8).attr('height', 8).attr('fill', '#EF4444').attr('rx', 1);
+  lg.append('text').attr('x', 11).attr('y', 7).attr('font-size', 9).attr('fill', '#666').text('Risk factor');
+  lg.append('rect').attr('x', 65).attr('width', 8).attr('height', 8).attr('fill', '#10B981').attr('rx', 1);
+  lg.append('text').attr('x', 76).attr('y', 7).attr('font-size', 9).attr('fill', '#666').text('Protective');
+}
+
+function buildLLMBySession(data) {
+  const sessions = data.llm_by_session.slice().sort((a,b) => a.session - b.session);
+  const container = document.getElementById('llm-by-session');
+  const margin = { top: 12, right: 50, bottom: 36, left: 50 };
+  const width = container.clientWidth - margin.left - margin.right;
+  const height = 240;
+  const svg = d3.select(container).append('svg')
+    .attr('width', width + margin.left + margin.right)
+    .attr('height', height + margin.top + margin.bottom);
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const x = d3.scaleBand().domain(sessions.map(d => d.session)).range([0, width]).padding(0.2);
+  const yLeft = d3.scaleLinear().domain([0, d3.max(sessions, d => d.total_llm) * 1.1]).range([height, 0]);
+  const yRight = d3.scaleLinear().domain([0, d3.max(sessions, d => d.n_students) * 1.3]).range([height, 0]);
+
+  // Phase backgrounds
+  const allSessions = sessions.map(d => d.session);
+  PHASE_BG.forEach(phase => {
+    const matching = allSessions.filter(s => s >= phase.start && s <= phase.end);
+    if (matching.length === 0) return;
+    const first = matching[0], last = matching[matching.length - 1];
+    const x0 = x(first);
+    const x1 = x(last) + x.bandwidth();
+    g.append('rect')
+      .attr('x', x0 - 4).attr('y', 0)
+      .attr('width', x1 - x0 + 8).attr('height', height)
+      .attr('fill', phase.color).attr('opacity', 0.3).attr('rx', 4);
+    g.append('text')
+      .attr('x', (x0 + x1) / 2).attr('y', -1)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', 9).attr('font-weight', 600).attr('fill', phase.text)
+      .text(phase.label);
+  });
+
+  // Left Y axis (LLM requests)
+  g.append('g')
+    .call(d3.axisLeft(yLeft).ticks(5).tickFormat(d3.format(',')))
+    .call(g => g.select('.domain').remove())
+    .call(g => g.selectAll('.tick line').attr('stroke', '#F1F5F9').attr('x2', width))
+    .call(g => g.selectAll('.tick text').attr('fill', '#94A3B8').attr('font-size', 10));
+
+  g.append('text').attr('transform', 'rotate(-90)')
+    .attr('x', -height/2).attr('y', -38)
+    .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', '#3B82F6')
+    .text('LLM Requests');
+
+  // Right Y axis (Students)
+  g.append('g').attr('transform', `translate(${width},0)`)
+    .call(d3.axisRight(yRight).ticks(5))
+    .call(g => g.select('.domain').remove())
+    .call(g => g.selectAll('.tick line').remove())
+    .call(g => g.selectAll('.tick text').attr('fill', '#F97316').attr('font-size', 10));
+
+  g.append('text').attr('transform', 'rotate(90)')
+    .attr('x', height/2).attr('y', -width - 38)
+    .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', '#F97316')
+    .text('Students');
+
+  // X axis
+  g.append('g').attr('transform', `translate(0,${height})`)
+    .call(d3.axisBottom(x).tickFormat(d => 'S' + Math.round(d)))
+    .call(g => g.select('.domain').attr('stroke', '#E2E8F0'))
+    .call(g => g.selectAll('.tick line').attr('stroke', '#E2E8F0'))
+    .call(g => g.selectAll('.tick text').attr('fill', '#94A3B8').attr('font-size', 10));
+
+  // Bars
+  g.selectAll('.bar').data(sessions).enter().append('rect')
+    .attr('x', d => x(d.session)).attr('y', d => yLeft(d.total_llm))
+    .attr('width', x.bandwidth()).attr('height', d => height - yLeft(d.total_llm))
+    .attr('fill', d => d.session === 7 ? '#2563EB' : '#93C5FD')
+    .attr('rx', 3).attr('opacity', 0.9);
+
+  // Highlight session 7 label
+  const s7 = sessions.find(d => d.session === 7);
+  if (s7) {
+    g.append('text')
+      .attr('x', x(s7.session) + x.bandwidth()/2).attr('y', yLeft(s7.total_llm) - 6)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', 10).attr('font-weight', 700).attr('fill', '#2563EB')
+      .text('2,374');
+  }
+
+  // Student line (orange)
+  const studentLine = d3.line()
+    .x(d => x(d.session) + x.bandwidth()/2)
+    .y(d => yRight(d.n_students))
+    .curve(d3.curveMonotoneX);
+
+  g.append('path').datum(sessions).attr('d', studentLine)
+    .attr('fill', 'none').attr('stroke', '#F97316').attr('stroke-width', 2.5).attr('stroke-opacity', 0.9);
+
+  g.selectAll('.student-dot').data(sessions).enter().append('circle')
+    .attr('cx', d => x(d.session) + x.bandwidth()/2)
+    .attr('cy', d => yRight(d.n_students))
+    .attr('r', 3).attr('fill', '#F97316');
+}
+
+function buildAIDependency(data) {
+  // Count quadrants
+  const quadCounts = {};
+  data.ai_dependency.forEach(d => {
+    quadCounts[d.quadrant] = (quadCounts[d.quadrant] || 0) + 1;
+  });
+  const total = data.ai_dependency.length;
+  const quadOrder = ['Independent', 'AI-Scaffolded', 'AI-Dependent', 'Disengaged'];
+  const quadData = quadOrder.map(q => ({ label: q, count: quadCounts[q] || 0, pct: ((quadCounts[q] || 0) / total * 100).toFixed(1) }));
+
+  const container = document.getElementById('ai-dependency');
+  const size = 260;
+  const svg = d3.select(container).append('svg').attr('width', size + 200).attr('height', size);
+  const gDonut = svg.append('g').attr('transform', `translate(${size/2},${size/2})`);
+
+  const outerRadius = size / 2 - 10;
+  const innerRadius = outerRadius * 0.58;
+
+  const pie = d3.pie().value(d => d.count).sort(null).padAngle(0.02);
+  const arc = d3.arc().innerRadius(innerRadius).outerRadius(outerRadius).cornerRadius(4);
+
+  const arcs = gDonut.selectAll('.arc').data(pie(quadData)).enter().append('g');
+
+  arcs.append('path')
+    .attr('d', arc)
+    .attr('fill', d => QUAD_COLOR[d.data.label])
+    .attr('opacity', 0.9);
+
+  // Center text
+  gDonut.append('text')
+    .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
+    .attr('font-size', 28).attr('font-weight', 800).attr('fill', '#1E293B')
+    .attr('dy', -8)
+    .text(total);
+  gDonut.append('text')
+    .attr('text-anchor', 'middle').attr('dominant-baseline', 'central')
+    .attr('font-size', 11).attr('fill', '#94A3B8').attr('font-weight', 500)
+    .attr('dy', 14)
+    .text('students');
+
+  // Legend on the right
+  const legend = svg.append('g').attr('transform', `translate(${size + 10}, ${size/2 - quadData.length * 22})`);
+  quadData.forEach((d, i) => {
+    const lg = legend.append('g').attr('transform', `translate(0, ${i * 48})`);
+    lg.append('rect').attr('width', 12).attr('height', 12).attr('rx', 3)
+      .attr('fill', QUAD_COLOR[d.label]).attr('opacity', 0.9);
+    lg.append('text').attr('x', 18).attr('y', 10)
+      .attr('font-size', 12).attr('font-weight', 600).attr('fill', '#334155')
+      .text(d.label);
+    lg.append('text').attr('x', 18).attr('y', 26)
+      .attr('font-size', 11).attr('fill', '#94A3B8').attr('font-weight', 500)
+      .text(d.count + ' (' + d.pct + '%)');
+  });
+}
+</script>
+</body>
+</html>

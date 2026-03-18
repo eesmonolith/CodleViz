@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CodleViz Analysis Figures — IEEE VIS 2026</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  background: #f5f5f5;
+  color: #333;
+  padding: 40px 20px;
+}
+.figure-section {
+  max-width: 1100px;
+  margin: 0 auto 60px auto;
+  background: #fff;
+  padding: 30px;
+  border: 1px solid #ddd;
+}
+.figure-section + .figure-section {
+  border-top: 3px solid #999;
+}
+.fig-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.fig-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+.download-btn {
+  font-size: 12px;
+  padding: 5px 12px;
+  border: 1px solid #999;
+  background: #fff;
+  cursor: pointer;
+  font-family: inherit;
+}
+.download-btn:hover { background: #f0f0f0; }
+svg text { font-family: 'Helvetica Neue', Arial, sans-serif; }
+</style>
+</head>
+<body>
+
+<div class="figure-section" id="fig2-section">
+  <div class="fig-header">
+    <span class="fig-label">Fig 2: Cliff Detection Heatmap</span>
+    <button class="download-btn" onclick="downloadSVG('fig2-svg','fig2_cliff_heatmap.svg')">Download SVG</button>
+  </div>
+  <div id="fig2"></div>
+</div>
+
+<div class="figure-section" id="fig3-section">
+  <div class="fig-header">
+    <span class="fig-label">Fig 3: Trajectory Alignment</span>
+    <button class="download-btn" onclick="downloadSVG('fig3-svg','fig3_trajectory.svg')">Download SVG</button>
+  </div>
+  <div id="fig3"></div>
+</div>
+
+<div class="figure-section" id="fig4a-section">
+  <div class="fig-header">
+    <span class="fig-label">Fig 4A: AI Dependency Scatter</span>
+    <button class="download-btn" onclick="downloadSVG('fig4a-svg','fig4a_ai_dependency.svg')">Download SVG</button>
+  </div>
+  <div id="fig4a"></div>
+</div>
+
+<div class="figure-section" id="fig4b-section">
+  <div class="fig-header">
+    <span class="fig-label">Fig 4B: AI Usage by Session</span>
+    <button class="download-btn" onclick="downloadSVG('fig4b-svg','fig4b_ai_usage_session.svg')">Download SVG</button>
+  </div>
+  <div id="fig4b"></div>
+</div>
+
+<div class="figure-section" id="fig5-section">
+  <div class="fig-header">
+    <span class="fig-label">Fig 5: Student Progress Heatmap</span>
+    <button class="download-btn" onclick="downloadSVG('fig5-svg','fig5_student_heatmap.svg')">Download SVG</button>
+  </div>
+  <div id="fig5"></div>
+</div>
+
+<div class="figure-section" id="fig6-section">
+  <div class="fig-header">
+    <span class="fig-label">Fig 6: Activity Distribution</span>
+    <button class="download-btn" onclick="downloadSVG('fig6-svg','fig6_activity.svg')">Download SVG</button>
+  </div>
+  <div id="fig6"></div>
+</div>
+
+<div class="figure-section" id="fig7-section">
+  <div class="fig-header">
+    <span class="fig-label">Fig 7: SHAP Feature Importance for Cliff Prediction</span>
+    <button class="download-btn" onclick="downloadSVG('fig7-svg','fig7_shap_importance.svg')">Download SVG</button>
+  </div>
+  <div id="fig7"></div>
+</div>
+
+<div class="figure-section" id="fig8-section">
+  <div class="fig-header">
+    <span class="fig-label">Fig 8: Raw vs AI-Adjusted Competency Scores</span>
+    <button class="download-btn" onclick="downloadSVG('fig8-svg','fig8_raw_vs_adjusted.svg')">Download SVG</button>
+  </div>
+  <div id="fig8"></div>
+</div>
+
+<div class="figure-section" id="fig9-section">
+  <div class="fig-header">
+    <span class="fig-label">Fig 9: Individual Score Adjustment (Raw vs AI-Adjusted)</span>
+    <button class="download-btn" onclick="downloadSVG('fig9-svg','fig9_score_scatter.svg')">Download SVG</button>
+  </div>
+  <div id="fig9"></div>
+</div>
+
+<div class="figure-section" id="fig10-section">
+  <div class="fig-header">
+    <span class="fig-label">Fig 10: Phase-wise Performance Sparklines</span>
+    <button class="download-btn" onclick="downloadSVG('fig10-svg','fig10_sparklines.svg')">Download SVG</button>
+  </div>
+  <div id="fig10"></div>
+</div>
+
+<script>
+// Curriculum mapping
+const CURR_MAP = {'해양쓰레기': 'Marine Debris', '기후변화': 'Climate Change', '식량안보': 'Food Security'};
+const CURR_COLORS = {'Marine Debris': '#3B82F6', 'Climate Change': '#10B981', 'Food Security': '#F59E0B'};
+const CURR_ORDER = ['Marine Debris', 'Climate Change', 'Food Security'];
+
+// Activity type mapping
+const ACT_MAP = {
+  'PdfActivity': 'PDF', 'VideoActivity': 'Video', 'StudioActivity': 'Coding',
+  'CodapActivity': 'CODAP', 'BoardActivity': 'Board', 'SheetActivity': 'Sheet',
+  'QuizActivity': 'Quiz', 'EmbeddedActivity': 'Embed', 'EntryActivity': 'Entry'
+};
+const ACT_COLORS = {
+  'PDF': '#64748B', 'Video': '#0EA5E9', 'Coding': '#EF4444', 'CODAP': '#10B981',
+  'Board': '#8B5CF6', 'Sheet': '#F59E0B', 'Quiz': '#EC4899', 'Embed': '#2563EB', 'Entry': '#14B8A6'
+};
+const ACT_ORDER = ['PDF','Video','Coding','CODAP','Board','Sheet','Quiz','Embed','Entry'];
+
+const PHASE_BOUNDS = [3.5, 7.5, 11.5];
+const PHASE_LABELS = ['Phase 1: Explore', 'Phase 2: Collect', 'Phase 3: Analyze', 'Phase 4: Present'];
+const PHASE_COLORS = ['#EFF6FF', '#F0FDF4', '#FFF7ED', '#FDF2F8'];
+
+function downloadSVG(id, filename) {
+  const svg = document.getElementById(id);
+  const serializer = new XMLSerializer();
+  let source = serializer.serializeToString(svg);
+  source = '<?xml version="1.0" standalone="no"?>\n' + source;
+  const blob = new Blob([source], {type: 'image/svg+xml;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+d3.json('data.json').then(data => {
+  // Preprocess: translate curriculum names
+  data.summary.forEach(d => d.curr_en = CURR_MAP[d.curriculum] || d.curriculum);
+  data.session.forEach(d => { d.curr_en = CURR_MAP[d.curriculum] || (CURR_MAP[data.summary.find(s=>s.classroom_name===d.classroom_name)?.curriculum] || d.classroom_name); });
+  data.competency.forEach(d => d.curr_en = CURR_MAP[d.curriculum] || d.curriculum);
+  data.heatmap.forEach(d => {
+    const s = data.summary.find(s => s.classroom_name === d.classroom_name);
+    d.curr_en = s ? (CURR_MAP[s.curriculum] || s.curriculum) : '';
+  });
+  data.activity.forEach(d => d.curr_en = CURR_MAP[d.curriculum] || d.curriculum);
+
+  // Assign curr_en to session data properly
+  const classroomCurrMap = {};
+  data.summary.forEach(d => classroomCurrMap[d.classroom_name] = CURR_MAP[d.curriculum] || d.curriculum);
+  data.session.forEach(d => d.curr_en = classroomCurrMap[d.classroom_name] || '');
+
+  drawFig2(data);
+  drawFig3(data);
+  drawFig4A(data);
+  drawFig4B(data);
+  drawFig5(data);
+  drawFig6(data);
+  drawFig7();
+  drawFig8(data);
+  drawFig9(data);
+  drawFig10(data);
+});
+
+// ========== FIG 2: Cliff Detection Heatmap ==========
+function drawFig2(data) {
+  const W = 1008, H = 680;
+  const margin = {top: 50, right: 40, bottom: 100, left: 140};
+  const heatW = W - margin.left - margin.right;
+  const heatH = H - margin.top - margin.bottom - 60; // leave room for bottom bar chart
+
+  // Compute completion rate per classroom per session
+  const sessionMap = {};
+  data.session.forEach(d => {
+    if (!sessionMap[d.classroom_name]) sessionMap[d.classroom_name] = {};
+    sessionMap[d.classroom_name][d.session] = d.completion_rate;
+  });
+
+  // Compute cliffs (drop from previous session)
+  const cliffData = [];
+  const classrooms = data.summary.slice();
+  // Sort by curriculum then avg_progress
+  classrooms.sort((a, b) => {
+    const ca = CURR_ORDER.indexOf(CURR_MAP[a.curriculum] || '');
+    const cb = CURR_ORDER.indexOf(CURR_MAP[b.curriculum] || '');
+    if (ca !== cb) return ca - cb;
+    return b.avg_progress - a.avg_progress;
+  });
+
+  const clNames = classrooms.map(c => c.classroom_name);
+  const cliffFreq = new Array(15).fill(0);
+
+  clNames.forEach(cn => {
+    const sm = sessionMap[cn] || {};
+    for (let s = 2; s <= 15; s++) {
+      const prev = sm[s-1] || 0;
+      const curr = sm[s] || 0;
+      const drop = prev - curr;
+      if (drop > 0.15) {
+        cliffData.push({classroom: cn, session: s, drop: drop});
+        cliffFreq[s-1]++;
+      }
+    }
+  });
+
+  const svg = d3.select('#fig2').append('svg')
+    .attr('id', 'fig2-svg')
+    .attr('width', W).attr('height', H)
+    .attr('viewBox', `0 0 ${W} ${H}`)
+    .style('background', '#fff');
+
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const cellW = heatW / 15;
+  const cellH = heatH / clNames.length;
+
+  // Color scale for cliff severity
+  const colorScale = d3.scaleSequential()
+    .domain([0.15, 0.8])
+    .interpolator(d3.interpolateRgb('#FEF3C7', '#DC2626'));
+
+  // Phase boundaries
+  const phases = [
+    {start: 0.5, end: 3.5, label: 'Phase 1'},
+    {start: 3.5, end: 7.5, label: 'Phase 2'},
+    {start: 7.5, end: 11.5, label: 'Phase 3'},
+    {start: 11.5, end: 15.5, label: 'Phase 4'}
+  ];
+
+  // Background cells (white)
+  clNames.forEach((cn, i) => {
+    for (let s = 1; s <= 15; s++) {
+      g.append('rect')
+        .attr('x', (s - 1) * cellW)
+        .attr('y', i * cellH)
+        .attr('width', cellW - 1)
+        .attr('height', cellH - 1)
+        .attr('fill', '#FAFAFA')
+        .attr('stroke', '#eee')
+        .attr('stroke-width', 0.5);
+    }
+  });
+
+  // Cliff cells
+  cliffData.forEach(d => {
+    const i = clNames.indexOf(d.classroom);
+    if (i < 0) return;
+    g.append('rect')
+      .attr('x', (d.session - 1) * cellW)
+      .attr('y', i * cellH)
+      .attr('width', cellW - 1)
+      .attr('height', cellH - 1)
+      .attr('fill', colorScale(Math.min(d.drop, 0.8)));
+  });
+
+  // Phase boundary lines
+  PHASE_BOUNDS.forEach(b => {
+    const x = (b - 0.5) * cellW;
+    g.append('line')
+      .attr('x1', x).attr('x2', x)
+      .attr('y1', -5).attr('y2', heatH)
+      .attr('stroke', '#666').attr('stroke-width', 1.5)
+      .attr('stroke-dasharray', '4,3');
+  });
+
+  // Phase labels on top
+  phases.forEach(p => {
+    const x1 = (p.start - 0.5) * cellW;
+    const x2 = (p.end - 0.5) * cellW;
+    g.append('text')
+      .attr('x', (x1 + x2) / 2)
+      .attr('y', -12)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', 10)
+      .attr('fill', '#666')
+      .text(p.label);
+  });
+
+  // Curriculum separator lines
+  let prevCurr = null;
+  clNames.forEach((cn, i) => {
+    const cls = classrooms[i];
+    const curr = CURR_MAP[cls.curriculum] || cls.curriculum;
+    if (prevCurr && curr !== prevCurr) {
+      g.append('line')
+        .attr('x1', 0).attr('x2', heatW)
+        .attr('y1', i * cellH - 0.5).attr('y2', i * cellH - 0.5)
+        .attr('stroke', '#333').attr('stroke-width', 1.5);
+    }
+    prevCurr = curr;
+  });
+
+  // Curriculum group labels
+  let groupStart = 0;
+  prevCurr = CURR_MAP[classrooms[0].curriculum];
+  for (let i = 1; i <= clNames.length; i++) {
+    const curr = i < clNames.length ? (CURR_MAP[classrooms[i].curriculum] || classrooms[i].curriculum) : null;
+    if (curr !== prevCurr || i === clNames.length) {
+      const midY = (groupStart + i) / 2 * cellH;
+      g.append('text')
+        .attr('x', -10)
+        .attr('y', midY)
+        .attr('text-anchor', 'end')
+        .attr('dominant-baseline', 'middle')
+        .attr('font-size', 11)
+        .attr('font-weight', 600)
+        .attr('fill', CURR_COLORS[prevCurr] || '#333')
+        .text(prevCurr);
+      groupStart = i;
+      prevCurr = curr;
+    }
+  }
+
+  // X axis (session numbers)
+  for (let s = 1; s <= 15; s++) {
+    g.append('text')
+      .attr('x', (s - 0.5) * cellW)
+      .attr('y', heatH + 15)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', 10)
+      .attr('fill', '#555')
+      .text('S' + s);
+  }
+  g.append('text')
+    .attr('x', heatW / 2).attr('y', heatH + 35)
+    .attr('text-anchor', 'middle').attr('font-size', 12).attr('fill', '#333')
+    .text('Session');
+
+  // Bottom sidebar: cliff frequency bar chart (one bar per session, aligned with columns)
+  const sideG = svg.append('g')
+    .attr('transform', `translate(${margin.left}, ${margin.top + heatH + 25})`);
+
+  const barMaxH = 30;
+  const barScale = d3.scaleLinear().domain([0, d3.max(cliffFreq)]).range([0, barMaxH]);
+
+  for (let s = 0; s < 15; s++) {
+    const freq = cliffFreq[s];
+    if (freq > 0) {
+      const bh = barScale(freq);
+      sideG.append('rect')
+        .attr('x', s * cellW + 1)
+        .attr('y', barMaxH - bh)
+        .attr('width', cellW - 2)
+        .attr('height', bh)
+        .attr('fill', '#EF4444')
+        .attr('opacity', 0.6);
+      sideG.append('text')
+        .attr('x', (s + 0.5) * cellW)
+        .attr('y', barMaxH - bh - 3)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', 8)
+        .attr('fill', '#888')
+        .text(freq);
+    }
+  }
+  sideG.append('text')
+    .attr('x', -10).attr('y', barMaxH / 2 + 3)
+    .attr('text-anchor', 'end').attr('font-size', 9).attr('fill', '#555')
+    .text('Cliffs');
+
+  // Color legend (bottom right)
+  const legendG = svg.append('g').attr('transform', `translate(${margin.left + heatW - 100}, ${margin.top + heatH + 65})`);
+  const legendW = 80;
+  const defs = svg.append('defs');
+  const grad = defs.append('linearGradient').attr('id', 'cliff-grad');
+  grad.append('stop').attr('offset', '0%').attr('stop-color', '#FEF3C7');
+  grad.append('stop').attr('offset', '100%').attr('stop-color', '#DC2626');
+  legendG.append('rect').attr('width', legendW).attr('height', 10).attr('fill', 'url(#cliff-grad)');
+  legendG.append('text').attr('y', 22).attr('font-size', 9).attr('fill', '#666').text('15%');
+  legendG.append('text').attr('x', legendW).attr('y', 22).attr('text-anchor', 'end').attr('font-size', 9).attr('fill', '#666').text('80%+');
+  legendG.append('text').attr('x', legendW / 2).attr('y', 34).attr('text-anchor', 'middle').attr('font-size', 9).attr('fill', '#555').text('Completion drop');
+}
+
+// ========== FIG 3: Trajectory Alignment ==========
+function drawFig3(data) {
+  const W = 1008, H = 450;
+  const margin = {top: 40, right: 30, bottom: 70, left: 60};
+  const plotW = W - margin.left - margin.right;
+  const plotH = H - margin.top - margin.bottom;
+
+  const svg = d3.select('#fig3').append('svg')
+    .attr('id', 'fig3-svg')
+    .attr('width', W).attr('height', H)
+    .attr('viewBox', `0 0 ${W} ${H}`)
+    .style('background', '#fff');
+
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const x = d3.scaleLinear().domain([1, 15]).range([0, plotW]);
+  const sessions = d3.range(1, 16);
+
+  // Group session data by classroom
+  const classroomCurrMap = {};
+  data.summary.forEach(d => classroomCurrMap[d.classroom_name] = CURR_MAP[d.curriculum] || d.curriculum);
+
+  const byCurr = {};
+  CURR_ORDER.forEach(c => byCurr[c] = {});
+
+  data.session.forEach(d => {
+    const curr = classroomCurrMap[d.classroom_name];
+    if (!curr || !byCurr[curr]) return;
+    if (!byCurr[curr][d.classroom_name]) byCurr[curr][d.classroom_name] = {};
+    byCurr[curr][d.classroom_name][d.session] = d.completion_rate;
+  });
+
+  // Baseline normalize (subtract session 1 value)
+  const allNorm = {};
+  CURR_ORDER.forEach(curr => {
+    allNorm[curr] = [];
+    Object.entries(byCurr[curr]).forEach(([cn, sm]) => {
+      const base = sm[1] || 0;
+      const series = sessions.map(s => (sm[s] !== undefined ? sm[s] - base : null));
+      allNorm[curr].push(series);
+    });
+  });
+
+  // Compute y domain
+  let yMin = -0.5, yMax = 0.5;
+  CURR_ORDER.forEach(curr => {
+    allNorm[curr].forEach(series => {
+      series.forEach(v => {
+        if (v !== null) {
+          yMin = Math.min(yMin, v);
+          yMax = Math.max(yMax, v);
+        }
+      });
+    });
+  });
+  yMin = Math.floor(yMin * 10) / 10 - 0.05;
+  yMax = Math.ceil(yMax * 10) / 10 + 0.05;
+
+  const y = d3.scaleLinear().domain([yMin, yMax]).range([plotH, 0]);
+
+  // Phase background strips
+  const phaseRanges = [[1, 3.5], [3.5, 7.5], [7.5, 11.5], [11.5, 15]];
+  phaseRanges.forEach((r, i) => {
+    g.append('rect')
+      .attr('x', x(r[0])).attr('y', 0)
+      .attr('width', x(r[1]) - x(r[0])).attr('height', plotH)
+      .attr('fill', PHASE_COLORS[i]).attr('opacity', 0.5);
+  });
+
+  // Baseline dashed line
+  g.append('line')
+    .attr('x1', 0).attr('x2', plotW)
+    .attr('y1', y(0)).attr('y2', y(0))
+    .attr('stroke', '#999').attr('stroke-dasharray', '6,4').attr('stroke-width', 1);
+
+  const line = d3.line()
+    .defined(d => d[1] !== null)
+    .x(d => x(d[0]))
+    .y(d => y(d[1]));
+
+  // Draw each curriculum
+  CURR_ORDER.forEach(curr => {
+    const color = CURR_COLORS[curr];
+    const seriesArr = allNorm[curr];
+
+    // Individual lines (thin, gray)
+    seriesArr.forEach(series => {
+      const pts = sessions.map((s, i) => [s, series[i]]).filter(d => d[1] !== null);
+      g.append('path')
+        .datum(pts)
+        .attr('d', line)
+        .attr('fill', 'none')
+        .attr('stroke', color)
+        .attr('stroke-width', 0.8)
+        .attr('opacity', 0.15);
+    });
+
+    // Compute median and IQR per session
+    const medians = [], q1s = [], q3s = [];
+    sessions.forEach((s, si) => {
+      const vals = seriesArr.map(sr => sr[si]).filter(v => v !== null).sort(d3.ascending);
+      if (vals.length > 0) {
+        medians.push([s, d3.median(vals)]);
+        q1s.push([s, d3.quantile(vals, 0.25)]);
+        q3s.push([s, d3.quantile(vals, 0.75)]);
+      }
+    });
+
+    // IQR band
+    const areaData = q1s.map((d, i) => ({s: d[0], q1: d[1], q3: q3s[i][1]}));
+    const area = d3.area()
+      .x(d => x(d.s))
+      .y0(d => y(d.q1))
+      .y1(d => y(d.q3));
+    g.append('path')
+      .datum(areaData)
+      .attr('d', area)
+      .attr('fill', color)
+      .attr('opacity', 0.2);
+
+    // Median line
+    g.append('path')
+      .datum(medians)
+      .attr('d', line)
+      .attr('fill', 'none')
+      .attr('stroke', color)
+      .attr('stroke-width', 2.5);
+  });
+
+  // Coding Cliff Zone annotation (S8-S11)
+  const cliffX1 = x(8), cliffX2 = x(11);
+  g.append('rect')
+    .attr('x', cliffX1).attr('y', 0)
+    .attr('width', cliffX2 - cliffX1).attr('height', plotH)
+    .attr('fill', '#EF4444').attr('opacity', 0.06);
+  g.append('line')
+    .attr('x1', cliffX1).attr('x2', cliffX1)
+    .attr('y1', 0).attr('y2', plotH)
+    .attr('stroke', '#EF4444').attr('stroke-dasharray', '3,3').attr('stroke-width', 0.8);
+  g.append('line')
+    .attr('x1', cliffX2).attr('x2', cliffX2)
+    .attr('y1', 0).attr('y2', plotH)
+    .attr('stroke', '#EF4444').attr('stroke-dasharray', '3,3').attr('stroke-width', 0.8);
+  g.append('text')
+    .attr('x', (cliffX1 + cliffX2) / 2).attr('y', 16)
+    .attr('text-anchor', 'middle').attr('font-size', 10)
+    .attr('fill', '#DC2626').attr('font-style', 'italic')
+    .text('Coding Cliff Zone');
+
+  // Axes
+  g.append('g')
+    .attr('transform', `translate(0,${plotH})`)
+    .call(d3.axisBottom(x).ticks(15).tickFormat(d => 'S' + d))
+    .selectAll('text').attr('font-size', 10);
+  g.append('g')
+    .call(d3.axisLeft(y).ticks(8).tickFormat(d3.format('+.0%')))
+    .selectAll('text').attr('font-size', 10);
+
+  g.append('text')
+    .attr('x', plotW / 2).attr('y', plotH + 38)
+    .attr('text-anchor', 'middle').attr('font-size', 12).text('Session');
+  g.append('text')
+    .attr('transform', 'rotate(-90)')
+    .attr('x', -plotH / 2).attr('y', -45)
+    .attr('text-anchor', 'middle').attr('font-size', 12)
+    .text('Completion Rate (baseline-normalized)');
+
+  // Legend at bottom
+  const legendG = g.append('g').attr('transform', `translate(${plotW / 2 - 150}, ${plotH + 50})`);
+  CURR_ORDER.forEach((curr, i) => {
+    const lx = i * 130;
+    legendG.append('line').attr('x1', lx).attr('x2', lx + 20).attr('y1', 0).attr('y2', 0)
+      .attr('stroke', CURR_COLORS[curr]).attr('stroke-width', 2.5);
+    legendG.append('text').attr('x', lx + 25).attr('y', 4)
+      .attr('font-size', 11).attr('fill', '#333').text(curr);
+  });
+}
+
+// ========== FIG 4A: AI Dependency Scatter ==========
+function drawFig4A(data) {
+  const W = 480, H = 480;
+  const margin = {top: 30, right: 20, bottom: 70, left: 60};
+  const plotW = W - margin.left - margin.right;
+  const plotH = H - margin.top - margin.bottom;
+
+  const students = data.ai_dependency;
+
+  // Compute medians for split lines
+  const sortedLLM = students.map(d => d.total_llm).sort(d3.ascending);
+  const sortedComp = students.map(d => d.avg_completion).sort(d3.ascending);
+  const medLLM = d3.median(sortedLLM);
+  const medComp = d3.median(sortedComp);
+
+  const x = d3.scaleLinear()
+    .domain([0, d3.max(students, d => d.total_llm) * 1.05])
+    .range([0, plotW]);
+  const y = d3.scaleLinear()
+    .domain([0, 100])
+    .range([plotH, 0]);
+
+  const svg = d3.select('#fig4a').append('svg')
+    .attr('id', 'fig4a-svg')
+    .attr('width', W).attr('height', H)
+    .attr('viewBox', `0 0 ${W} ${H}`)
+    .style('background', '#fff');
+
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  // Quadrant background colors
+  const quadrantDefs = [
+    {label: 'Independent', color: '#DBEAFE', dotColor: '#3B82F6',
+     x1: 0, x2: x(medLLM), y1: y(100), y2: y(medComp * 100)},
+    {label: 'AI-Scaffolded', color: '#D1FAE5', dotColor: '#10B981',
+     x1: x(medLLM), x2: plotW, y1: y(100), y2: y(medComp * 100)},
+    {label: 'AI-Dependent', color: '#FEE2E2', dotColor: '#EF4444',
+     x1: x(medLLM), x2: plotW, y1: y(medComp * 100), y2: plotH},
+    {label: 'Disengaged', color: '#F1F5F9', dotColor: '#94A3B8',
+     x1: 0, x2: x(medLLM), y1: y(medComp * 100), y2: plotH}
+  ];
+
+  const quadColorMap = {
+    'Independent': '#3B82F6',
+    'AI-Scaffolded': '#10B981',
+    'AI-Dependent': '#EF4444',
+    'Disengaged': '#94A3B8'
+  };
+  const quadLabelColorMap = {
+    'Independent': '#2563EB',
+    'AI-Scaffolded': '#059669',
+    'AI-Dependent': '#DC2626',
+    'Disengaged': '#64748B'
+  };
+
+  // Draw quadrant backgrounds
+  quadrantDefs.forEach(q => {
+    g.append('rect')
+      .attr('x', q.x1).attr('y', q.y1)
+      .attr('width', q.x2 - q.x1).attr('height', q.y2 - q.y1)
+      .attr('fill', q.color).attr('opacity', 0.5);
+  });
+
+  // Quadrant labels in corners
+  g.append('text').attr('x', 6).attr('y', y(100) + 16)
+    .attr('font-size', 11).attr('font-weight', 600).attr('fill', quadLabelColorMap['Independent'])
+    .text('Independent');
+  g.append('text').attr('x', plotW - 6).attr('y', y(100) + 16)
+    .attr('text-anchor', 'end').attr('font-size', 11).attr('font-weight', 600).attr('fill', quadLabelColorMap['AI-Scaffolded'])
+    .text('AI-Scaffolded');
+  g.append('text').attr('x', plotW - 6).attr('y', plotH - 6)
+    .attr('text-anchor', 'end').attr('font-size', 11).attr('font-weight', 600).attr('fill', quadLabelColorMap['AI-Dependent'])
+    .text('AI-Dependent');
+  g.append('text').attr('x', 6).attr('y', plotH - 6)
+    .attr('font-size', 11).attr('font-weight', 600).attr('fill', quadLabelColorMap['Disengaged'])
+    .text('Disengaged');
+
+  // Median dashed lines
+  g.append('line')
+    .attr('x1', x(medLLM)).attr('x2', x(medLLM))
+    .attr('y1', 0).attr('y2', plotH)
+    .attr('stroke', '#666').attr('stroke-dasharray', '5,4').attr('stroke-width', 1);
+  g.append('line')
+    .attr('x1', 0).attr('x2', plotW)
+    .attr('y1', y(medComp * 100)).attr('y2', y(medComp * 100))
+    .attr('stroke', '#666').attr('stroke-dasharray', '5,4').attr('stroke-width', 1);
+
+  // Draw dots
+  students.forEach(s => {
+    const color = quadColorMap[s.quadrant] || '#94A3B8';
+    const cx = x(s.total_llm);
+    const cy = y(s.avg_completion * 100);
+
+    if (s.llm_trend > 0.5) {
+      // Triangle up
+      const size = 28;
+      const h = Math.sqrt(size * 3);
+      const path = `M${cx},${cy - h * 0.6} L${cx - h * 0.5},${cy + h * 0.4} L${cx + h * 0.5},${cy + h * 0.4} Z`;
+      g.append('path').attr('d', path)
+        .attr('fill', color).attr('opacity', 0.6).attr('stroke', 'none');
+    } else if (s.llm_trend < -0.5) {
+      // Triangle down
+      const size = 28;
+      const h = Math.sqrt(size * 3);
+      const path = `M${cx},${cy + h * 0.6} L${cx - h * 0.5},${cy - h * 0.4} L${cx + h * 0.5},${cy - h * 0.4} Z`;
+      g.append('path').attr('d', path)
+        .attr('fill', color).attr('opacity', 0.6).attr('stroke', 'none');
+    } else {
+      // Circle
+      g.append('circle')
+        .attr('cx', cx).attr('cy', cy).attr('r', 3)
+        .attr('fill', color).attr('opacity', 0.6).attr('stroke', 'none');
+    }
+  });
+
+  // Axes
+  g.append('g')
+    .attr('transform', `translate(0,${plotH})`)
+    .call(d3.axisBottom(x).ticks(6))
+    .selectAll('text').attr('font-size', 10);
+  g.append('g')
+    .call(d3.axisLeft(y).ticks(5).tickFormat(d => d + '%'))
+    .selectAll('text').attr('font-size', 10);
+
+  g.append('text')
+    .attr('x', plotW / 2).attr('y', plotH + 38)
+    .attr('text-anchor', 'middle').attr('font-size', 12).text('Total AI Tutor Requests');
+  g.append('text')
+    .attr('transform', 'rotate(-90)')
+    .attr('x', -plotH / 2).attr('y', -45)
+    .attr('text-anchor', 'middle').attr('font-size', 12)
+    .text('Avg Completion (%)');
+
+  // Legend for shapes
+  const legG = g.append('g').attr('transform', `translate(10, ${plotH + 50})`);
+  // Triangle up
+  legG.append('path').attr('d', 'M0,-5 L-4,3 L4,3 Z').attr('fill', '#555');
+  legG.append('text').attr('x', 8).attr('y', 3).attr('font-size', 10).attr('fill', '#555').text('Increasing AI use');
+  // Circle
+  legG.append('circle').attr('cx', 140).attr('cy', 0).attr('r', 3).attr('fill', '#555');
+  legG.append('text').attr('x', 148).attr('y', 3).attr('font-size', 10).attr('fill', '#555').text('Stable');
+  // Triangle down
+  legG.append('path').attr('d', 'M230,5 L226,-3 L234,-3 Z').attr('fill', '#555');
+  legG.append('text').attr('x', 238).attr('y', 3).attr('font-size', 10).attr('fill', '#555').text('Decreasing AI use');
+}
+
+// ========== FIG 4B: AI Usage by Session ==========
+function drawFig4B(data) {
+  const W = 1008, H = 450;
+  const margin = {top: 40, right: 65, bottom: 60, left: 60};
+  const plotW = W - margin.left - margin.right;
+  const plotH = H - margin.top - margin.bottom;
+
+  const svg = d3.select('#fig4b').append('svg')
+    .attr('id', 'fig4b-svg')
+    .attr('width', W).attr('height', H)
+    .attr('viewBox', `0 0 ${W} ${H}`)
+    .style('background', '#fff');
+
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  // Aggregate llm_per_session by session and subtype
+  const aggBySession = {};
+  for (let s = 1; s <= 15; s++) {
+    aggBySession[s] = {error_help: 0, sheet_help: 0, sheet_filter: 0};
+  }
+  data.llm_per_session.forEach(d => {
+    const s = Math.round(d.session);
+    if (s >= 1 && s <= 15) {
+      aggBySession[s].error_help += d.error_help;
+      aggBySession[s].sheet_help += d.sheet_help;
+      aggBySession[s].sheet_filter += d.sheet_filter;
+    }
+  });
+
+  // Build llm_by_session lookup (some sessions may be missing like S2)
+  const sessionLookup = {};
+  data.llm_by_session.forEach(d => {
+    sessionLookup[Math.round(d.session)] = d;
+  });
+
+  const sessions = d3.range(1, 16);
+  const barData = sessions.map(s => {
+    const agg = aggBySession[s];
+    const info = sessionLookup[s] || {total_llm: 0, n_students: 0, avg_llm: 0};
+    return {
+      session: s,
+      error_help: agg.error_help,
+      sheet_help: agg.sheet_help,
+      sheet_filter: agg.sheet_filter,
+      total: agg.error_help + agg.sheet_help + agg.sheet_filter,
+      n_students: info.n_students
+    };
+  });
+
+  const maxTotal = d3.max(barData, d => d.total);
+  const maxStudents = d3.max(barData, d => d.n_students);
+
+  const x = d3.scaleBand()
+    .domain(sessions.map(s => 'S' + s))
+    .range([0, plotW])
+    .padding(0.2);
+
+  const yLeft = d3.scaleLinear()
+    .domain([0, maxTotal * 1.1])
+    .range([plotH, 0]);
+
+  const yRight = d3.scaleLinear()
+    .domain([0, maxStudents * 1.15])
+    .range([plotH, 0]);
+
+  // Phase background strips
+  const phaseRanges = [[1, 3.5], [3.5, 7.5], [7.5, 11.5], [11.5, 15]];
+  const xLinear = d3.scaleLinear().domain([0.5, 15.5]).range([0, plotW]);
+  phaseRanges.forEach((r, i) => {
+    g.append('rect')
+      .attr('x', xLinear(r[0])).attr('y', 0)
+      .attr('width', xLinear(r[1]) - xLinear(r[0])).attr('height', plotH)
+      .attr('fill', PHASE_COLORS[i]).attr('opacity', 0.4);
+  });
+
+  // Phase labels
+  const phaseLabelData = [
+    {start: 1, end: 3.5, label: 'Phase 1'},
+    {start: 3.5, end: 7.5, label: 'Phase 2'},
+    {start: 7.5, end: 11.5, label: 'Phase 3'},
+    {start: 11.5, end: 15, label: 'Phase 4'}
+  ];
+  phaseLabelData.forEach(p => {
+    g.append('text')
+      .attr('x', (xLinear(p.start) + xLinear(p.end)) / 2)
+      .attr('y', -8)
+      .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', '#888')
+      .text(p.label);
+  });
+
+  // Stacked bars
+  const subtypes = ['error_help', 'sheet_help', 'sheet_filter'];
+  const subtypeColors = {'error_help': '#EF4444', 'sheet_help': '#3B82F6', 'sheet_filter': '#10B981'};
+  const subtypeLabels = {'error_help': 'Error Help', 'sheet_help': 'Sheet Help', 'sheet_filter': 'Sheet Filter'};
+
+  barData.forEach(d => {
+    let yOffset = 0;
+    subtypes.forEach(st => {
+      const val = d[st];
+      if (val > 0) {
+        const barH = plotH - yLeft(val);
+        g.append('rect')
+          .attr('x', x('S' + d.session))
+          .attr('y', yLeft(yOffset + val))
+          .attr('width', x.bandwidth())
+          .attr('height', barH)
+          .attr('fill', subtypeColors[st])
+          .attr('opacity', 0.8);
+      }
+      yOffset += val;
+    });
+  });
+
+  // Line chart: n_students (right axis)
+  const lineGen = d3.line()
+    .defined(d => d.n_students > 0)
+    .x(d => x('S' + d.session) + x.bandwidth() / 2)
+    .y(d => yRight(d.n_students));
+
+  g.append('path')
+    .datum(barData.filter(d => d.n_students > 0))
+    .attr('d', lineGen)
+    .attr('fill', 'none')
+    .attr('stroke', '#F59E0B')
+    .attr('stroke-width', 2.5);
+
+  barData.forEach(d => {
+    if (d.n_students > 0) {
+      g.append('circle')
+        .attr('cx', x('S' + d.session) + x.bandwidth() / 2)
+        .attr('cy', yRight(d.n_students))
+        .attr('r', 4)
+        .attr('fill', '#F59E0B')
+        .attr('stroke', '#fff')
+        .attr('stroke-width', 1.5);
+    }
+  });
+
+  // S7 annotation (peak)
+  const s7 = barData.find(d => d.session === 7);
+  if (s7) {
+    const s7x = x('S7') + x.bandwidth() / 2;
+    const s7y = yLeft(s7.total);
+    g.append('line')
+      .attr('x1', s7x).attr('x2', s7x)
+      .attr('y1', s7y - 5).attr('y2', s7y - 30)
+      .attr('stroke', '#333').attr('stroke-width', 1);
+    g.append('text')
+      .attr('x', s7x).attr('y', s7y - 34)
+      .attr('text-anchor', 'middle').attr('font-size', 11).attr('fill', '#333').attr('font-weight', 600)
+      .text('Peak: ' + s7.total + ' events, ' + s7.n_students + ' students');
+  }
+
+  // Left axis
+  g.append('g')
+    .call(d3.axisLeft(yLeft).ticks(6))
+    .selectAll('text').attr('font-size', 10);
+  g.append('text')
+    .attr('transform', 'rotate(-90)')
+    .attr('x', -plotH / 2).attr('y', -45)
+    .attr('text-anchor', 'middle').attr('font-size', 12).attr('fill', '#333')
+    .text('Total AI Tutor Events');
+
+  // Right axis
+  g.append('g')
+    .attr('transform', `translate(${plotW},0)`)
+    .call(d3.axisRight(yRight).ticks(5))
+    .selectAll('text').attr('font-size', 10);
+  g.append('text')
+    .attr('transform', 'rotate(90)')
+    .attr('x', plotH / 2).attr('y', -plotW - 50)
+    .attr('text-anchor', 'middle').attr('font-size', 12).attr('fill', '#F59E0B')
+    .text('Number of Students');
+
+  // X axis
+  g.append('g')
+    .attr('transform', `translate(0,${plotH})`)
+    .call(d3.axisBottom(x))
+    .selectAll('text').attr('font-size', 10);
+  g.append('text')
+    .attr('x', plotW / 2).attr('y', plotH + 42)
+    .attr('text-anchor', 'middle').attr('font-size', 12).attr('fill', '#333')
+    .text('Session');
+
+  // Legend
+  const legG = g.append('g').attr('transform', `translate(${plotW / 2 - 180}, ${plotH + 48})`);
+  subtypes.forEach((st, i) => {
+    const lx = i * 110;
+    legG.append('rect').attr('x', lx).attr('y', -5).attr('width', 10).attr('height', 10)
+      .attr('fill', subtypeColors[st]).attr('opacity', 0.8);
+    legG.append('text').attr('x', lx + 14).attr('y', 4)
+      .attr('font-size', 10).attr('fill', '#333').text(subtypeLabels[st]);
+  });
+  // Students line legend
+  const slx = 330;
+  legG.append('line').attr('x1', slx).attr('x2', slx + 20).attr('y1', 0).attr('y2', 0)
+    .attr('stroke', '#F59E0B').attr('stroke-width', 2.5);
+  legG.append('circle').attr('cx', slx + 10).attr('cy', 0).attr('r', 3).attr('fill', '#F59E0B');
+  legG.append('text').attr('x', slx + 25).attr('y', 4)
+    .attr('font-size', 10).attr('fill', '#333').text('Students');
+}
+
+// ========== FIG 5: Student Progress Heatmap ==========
+function drawFig5(data) {
+  const W = 1008, H = 500;
+  const margin = {top: 40, right: 80, bottom: 50, left: 80};
+  const plotW = W - margin.left - margin.right;
+  const plotH = H - margin.top - margin.bottom;
+
+  // Pick a mid-performing classroom with 10-25 students
+  // School_19 기후변화: 13 students, avg_progress=0.563 (nice mid-range)
+  const targetClass = 'School_19 기후변화';
+  const studentData = data.heatmap.filter(d => d.classroom_name === targetClass);
+  const studentIds = [...new Set(studentData.map(d => d.profile_id))].sort();
+
+  // Compute avg progress per student for sorting and at-risk detection
+  const studentAvg = {};
+  studentIds.forEach(sid => {
+    const records = studentData.filter(d => d.profile_id === sid);
+    studentAvg[sid] = d3.mean(records, d => d.avg_progress);
+  });
+  // Sort students by avg progress descending
+  studentIds.sort((a, b) => studentAvg[b] - studentAvg[a]);
+
+  const cellW = plotW / 15;
+  const cellH = plotH / studentIds.length;
+
+  // Build lookup
+  const lookup = {};
+  studentData.forEach(d => {
+    lookup[`${d.profile_id}_${d.session}`] = d.avg_progress;
+  });
+
+  const svg = d3.select('#fig5').append('svg')
+    .attr('id', 'fig5-svg')
+    .attr('width', W).attr('height', H)
+    .attr('viewBox', `0 0 ${W} ${H}`)
+    .style('background', '#fff');
+
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  // Color scale: red (0%) → yellow (50%) → green (100%)
+  const colorScale = d3.scaleLinear()
+    .domain([0, 0.5, 1])
+    .range(['#EF4444', '#FBBF24', '#22C55E']);
+
+  // Draw cells
+  studentIds.forEach((sid, i) => {
+    const atRisk = studentAvg[sid] < 0.3;
+    for (let s = 1; s <= 15; s++) {
+      const val = lookup[`${sid}_${s}`];
+      g.append('rect')
+        .attr('x', (s - 1) * cellW)
+        .attr('y', i * cellH)
+        .attr('width', cellW - 1)
+        .attr('height', cellH - 1)
+        .attr('fill', val !== undefined ? colorScale(val) : '#f5f5f5')
+        .attr('stroke', atRisk ? '#DC2626' : '#fff')
+        .attr('stroke-width', atRisk ? 1.5 : 0.5);
+    }
+
+    // Student label
+    g.append('text')
+      .attr('x', -5)
+      .attr('y', i * cellH + cellH / 2)
+      .attr('text-anchor', 'end')
+      .attr('dominant-baseline', 'middle')
+      .attr('font-size', 10)
+      .attr('fill', atRisk ? '#DC2626' : '#555')
+      .attr('font-weight', atRisk ? 600 : 400)
+      .text(sid);
+  });
+
+  // Phase boundary lines
+  PHASE_BOUNDS.forEach(b => {
+    const xp = (b - 0.5) * cellW;
+    g.append('line')
+      .attr('x1', xp).attr('x2', xp)
+      .attr('y1', -3).attr('y2', plotH)
+      .attr('stroke', '#333').attr('stroke-width', 1)
+      .attr('stroke-dasharray', '4,3');
+  });
+
+  // Session labels
+  for (let s = 1; s <= 15; s++) {
+    g.append('text')
+      .attr('x', (s - 0.5) * cellW)
+      .attr('y', plotH + 15)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', 10)
+      .attr('fill', '#555')
+      .text('S' + s);
+  }
+  g.append('text')
+    .attr('x', plotW / 2).attr('y', plotH + 35)
+    .attr('text-anchor', 'middle').attr('font-size', 12).text('Session');
+
+  // Colorbar on right
+  const cbG = svg.append('g').attr('transform', `translate(${margin.left + plotW + 15}, ${margin.top})`);
+  const cbH = plotH * 0.6;
+  const cbW = 12;
+  const defs = svg.append('defs');
+  const grad = defs.append('linearGradient').attr('id', 'prog-grad').attr('x1', '0').attr('y1', '1').attr('x2', '0').attr('y2', '0');
+  grad.append('stop').attr('offset', '0%').attr('stop-color', '#EF4444');
+  grad.append('stop').attr('offset', '50%').attr('stop-color', '#FBBF24');
+  grad.append('stop').attr('offset', '100%').attr('stop-color', '#22C55E');
+  cbG.append('rect').attr('width', cbW).attr('height', cbH).attr('fill', 'url(#prog-grad)');
+  cbG.append('text').attr('x', cbW + 4).attr('y', 8).attr('font-size', 9).attr('fill', '#555').text('100%');
+  cbG.append('text').attr('x', cbW + 4).attr('y', cbH / 2 + 3).attr('font-size', 9).attr('fill', '#555').text('50%');
+  cbG.append('text').attr('x', cbW + 4).attr('y', cbH).attr('font-size', 9).attr('fill', '#555').text('0%');
+
+  // At-risk legend
+  cbG.append('rect').attr('x', -5).attr('y', cbH + 20).attr('width', 16).attr('height', 12)
+    .attr('fill', 'none').attr('stroke', '#DC2626').attr('stroke-width', 1.5);
+  cbG.append('text').attr('x', 16).attr('y', cbH + 30).attr('font-size', 9).attr('fill', '#DC2626').text(' At-risk');
+}
+
+// ========== FIG 6: Activity Distribution ==========
+function drawFig6(data) {
+  const W = 1008, H = 400;
+  const margin = {top: 30, right: 15, bottom: 80, left: 45};
+  const gap = 30;
+  const panelW = (W - margin.left - margin.right - gap * 2) / 3;
+  const panelH = H - margin.top - margin.bottom;
+
+  const svg = d3.select('#fig6').append('svg')
+    .attr('id', 'fig6-svg')
+    .attr('width', W).attr('height', H)
+    .attr('viewBox', `0 0 ${W} ${H}`)
+    .style('background', '#fff');
+
+  const sessions = d3.range(1, 16);
+
+  CURR_ORDER.forEach((curr, ci) => {
+    const offsetX = margin.left + ci * (panelW + gap);
+    const g = svg.append('g').attr('transform', `translate(${offsetX},${margin.top})`);
+
+    // Filter and map activity data for this curriculum
+    const currKor = Object.keys(CURR_MAP).find(k => CURR_MAP[k] === curr);
+    const currAct = data.activity.filter(d => d.curriculum === currKor);
+
+    // Build matrix: session x activity type (proportions)
+    const sessionTotals = {};
+    const sessionActs = {};
+    sessions.forEach(s => {
+      sessionTotals[s] = 0;
+      sessionActs[s] = {};
+      ACT_ORDER.forEach(a => sessionActs[s][a] = 0);
+    });
+
+    currAct.forEach(d => {
+      const aName = ACT_MAP[d.activitiable_type];
+      if (aName && sessionActs[d.session]) {
+        sessionActs[d.session][aName] = d.count;
+        sessionTotals[d.session] += d.count;
+      }
+    });
+
+    // Convert to proportions
+    const stackData = sessions.map(s => {
+      const row = {session: s};
+      ACT_ORDER.forEach(a => {
+        row[a] = sessionTotals[s] > 0 ? sessionActs[s][a] / sessionTotals[s] : 0;
+      });
+      return row;
+    });
+
+    const stack = d3.stack().keys(ACT_ORDER);
+    const series = stack(stackData);
+
+    const x = d3.scaleLinear().domain([1, 15]).range([0, panelW]);
+    const y = d3.scaleLinear().domain([0, 1]).range([panelH, 0]);
+
+    // Coding cliff zone highlight
+    g.append('rect')
+      .attr('x', x(8)).attr('y', 0)
+      .attr('width', x(11) - x(8)).attr('height', panelH)
+      .attr('fill', '#EF4444').attr('opacity', 0.05);
+
+    // Stacked areas
+    const area = d3.area()
+      .x(d => x(d.data.session))
+      .y0(d => y(d[0]))
+      .y1(d => y(d[1]));
+
+    series.forEach(s => {
+      g.append('path')
+        .datum(s)
+        .attr('d', area)
+        .attr('fill', ACT_COLORS[s.key])
+        .attr('opacity', 0.85);
+    });
+
+    // Axes
+    g.append('g')
+      .attr('transform', `translate(0,${panelH})`)
+      .call(d3.axisBottom(x).ticks(5).tickFormat(d => 'S' + d))
+      .selectAll('text').attr('font-size', 9);
+
+    if (ci === 0) {
+      g.append('g')
+        .call(d3.axisLeft(y).ticks(4).tickFormat(d3.format('.0%')))
+        .selectAll('text').attr('font-size', 9);
+    } else {
+      g.append('g')
+        .call(d3.axisLeft(y).ticks(4).tickSize(0).tickFormat(''));
+    }
+
+    // Panel title
+    g.append('text')
+      .attr('x', panelW / 2).attr('y', -10)
+      .attr('text-anchor', 'middle').attr('font-size', 12)
+      .attr('font-weight', 600).attr('fill', CURR_COLORS[curr])
+      .text(curr);
+  });
+
+  // Shared legend at bottom (2 rows)
+  const legendG = svg.append('g').attr('transform', `translate(${W / 2 - 250}, ${H - 35})`);
+  ACT_ORDER.forEach((a, i) => {
+    const row = Math.floor(i / 5);
+    const col = i % 5;
+    const lx = col * 100;
+    const ly = row * 16;
+    legendG.append('rect').attr('x', lx).attr('y', ly - 5).attr('width', 10).attr('height', 10)
+      .attr('fill', ACT_COLORS[a]);
+    legendG.append('text').attr('x', lx + 13).attr('y', ly + 4)
+      .attr('font-size', 9).attr('fill', '#333').text(a);
+  });
+
+  // Y-axis label
+  svg.append('text')
+    .attr('transform', 'rotate(-90)')
+    .attr('x', -(margin.top + panelH / 2))
+    .attr('y', 14)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', 11)
+    .text('Proportion');
+}
+
+// ══════════════════════════════════════════════════════
+// FIG 7: SHAP Global Feature Importance
+// ══════════════════════════════════════════════════════
+function drawFig7() {
+  // REAL SHAP values: XGBoost (accuracy=0.988, AUC=0.999), 686 samples, 139 cliffs
+  const features = [
+    { feature: 'Prior Completion Rate', importance: 2.195 },
+    { feature: '% Students Below 30%', importance: 1.667 },
+    { feature: 'Student Completion Spread', importance: 0.891 },
+    { feature: 'Lowest Student Completion', importance: 0.264 },
+    { feature: 'Prior 3-Session Trend', importance: 0.262 },
+    { feature: 'CODAP %', importance: 0.164 },
+    { feature: 'Student Count', importance: 0.150 },
+    { feature: 'Phase Transition', importance: 0.124 },
+  ];
+
+  const W = 1008, H = 360;
+  const margin = { top: 30, right: 80, bottom: 40, left: 200 };
+  const w = W - margin.left - margin.right;
+  const h = H - margin.top - margin.bottom;
+
+  const svg = d3.select('#fig7').append('svg')
+    .attr('id', 'fig7-svg').attr('width', W).attr('height', H)
+    .attr('viewBox', `0 0 ${W} ${H}`).style('background', '#fff');
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const x = d3.scaleLinear().domain([0, 2.5]).range([0, w]);
+  const y = d3.scaleBand().domain(features.map(d => d.feature)).range([0, h]).padding(0.3);
+
+  const colorScale = d3.scaleLinear().domain([0.12, 2.2]).range(['#C4B5FD', '#7C3AED']);
+
+  g.selectAll('rect').data(features).join('rect')
+    .attr('x', 0).attr('y', d => y(d.feature))
+    .attr('width', d => x(d.importance)).attr('height', y.bandwidth())
+    .attr('fill', d => colorScale(d.importance)).attr('rx', 3);
+
+  g.selectAll('.val').data(features).join('text')
+    .attr('x', d => x(d.importance) + 6).attr('y', d => y(d.feature) + y.bandwidth() / 2)
+    .attr('dy', '0.35em').attr('font-size', 11).attr('fill', '#555')
+    .text(d => d.importance.toFixed(2));
+
+  g.append('g').attr('transform', `translate(0,${h})`).call(d3.axisBottom(x).ticks(5).tickFormat(d3.format('.2f')))
+    .selectAll('text').attr('font-size', 10);
+  g.append('g').call(d3.axisLeft(y)).selectAll('text').attr('font-size', 11);
+
+  svg.append('text').attr('x', W / 2).attr('y', H - 6).attr('text-anchor', 'middle')
+    .attr('font-size', 12).text('Mean |SHAP value|');
+}
+
+// ══════════════════════════════════════════════════════
+// FIG 8: Raw vs AI-Adjusted Competency
+// ══════════════════════════════════════════════════════
+function drawFig8(data) {
+  const comp = data.competency_raw_vs_adjusted || [];
+  if (!comp.length) return;
+  const order = ['DC', 'DA', 'DV', 'DI', 'CT'];
+  const sorted = order.map(c => comp.find(d => d.competency === c)).filter(Boolean);
+
+  const W = 1008, H = 380;
+  const margin = { top: 30, right: 40, bottom: 50, left: 55 };
+  const w = W - margin.left - margin.right;
+  const h = H - margin.top - margin.bottom;
+
+  const svg = d3.select('#fig8').append('svg')
+    .attr('id', 'fig8-svg').attr('width', W).attr('height', H)
+    .attr('viewBox', `0 0 ${W} ${H}`).style('background', '#fff');
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const x0 = d3.scaleBand().domain(order).range([0, w]).padding(0.35);
+  const x1 = d3.scaleBand().domain(['raw', 'adjusted']).range([0, x0.bandwidth()]).padding(0.1);
+  const y = d3.scaleLinear().domain([0, 70]).range([h, 0]);
+
+  g.append('g').attr('transform', `translate(0,${h})`).call(d3.axisBottom(x0))
+    .selectAll('text').attr('font-size', 12).attr('font-weight', '600');
+  g.append('g').call(d3.axisLeft(y).ticks(7).tickFormat(d => d + '%'))
+    .selectAll('text').attr('font-size', 10);
+
+  // Bars
+  sorted.forEach(d => {
+    const xPos = x0(d.competency);
+    g.append('rect').attr('x', xPos + x1('raw')).attr('y', y(d.raw * 100))
+      .attr('width', x1.bandwidth()).attr('height', h - y(d.raw * 100))
+      .attr('fill', '#3B82F6').attr('rx', 3);
+    g.append('rect').attr('x', xPos + x1('adjusted')).attr('y', y(d.adjusted * 100))
+      .attr('width', x1.bandwidth()).attr('height', h - y(d.adjusted * 100))
+      .attr('fill', '#F59E0B').attr('rx', 3);
+
+    // Value labels
+    g.append('text').attr('x', xPos + x1('raw') + x1.bandwidth() / 2).attr('y', y(d.raw * 100) - 5)
+      .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', '#3B82F6')
+      .text((d.raw * 100).toFixed(1) + '%');
+    g.append('text').attr('x', xPos + x1('adjusted') + x1.bandwidth() / 2).attr('y', y(d.adjusted * 100) - 5)
+      .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', '#D97706')
+      .text((d.adjusted * 100).toFixed(1) + '%');
+
+    // Diff annotation
+    const diff = d.diff;
+    g.append('text').attr('x', xPos + x0.bandwidth() / 2).attr('y', y(Math.max(d.raw, d.adjusted) * 100) - 20)
+      .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', '#DC2626').attr('font-weight', '600')
+      .text(diff.toFixed(1) + '%p');
+  });
+
+  // Legend
+  const lg = g.append('g').attr('transform', `translate(${w - 200}, -10)`);
+  lg.append('rect').attr('width', 12).attr('height', 12).attr('fill', '#3B82F6').attr('rx', 2);
+  lg.append('text').attr('x', 16).attr('y', 10).attr('font-size', 11).attr('fill', '#333').text('Raw');
+  lg.append('rect').attr('x', 70).attr('width', 12).attr('height', 12).attr('fill', '#F59E0B').attr('rx', 2);
+  lg.append('text').attr('x', 86).attr('y', 10).attr('font-size', 11).attr('fill', '#333').text('AI-Adjusted');
+
+  svg.append('text').attr('x', W / 2).attr('y', H - 8).attr('text-anchor', 'middle')
+    .attr('font-size', 12).text('Competency');
+  svg.append('text').attr('transform', 'rotate(-90)').attr('x', -H / 2).attr('y', 14)
+    .attr('text-anchor', 'middle').attr('font-size', 12).text('Score (%)');
+}
+
+// ══════════════════════════════════════════════════════
+// FIG 9: Student Score — Raw vs Adjusted Scatter
+// ══════════════════════════════════════════════════════
+function drawFig9(data) {
+  const ai = data.ai_dependency || [];
+  if (!ai.length) return;
+
+  const W = 480, H = 480;
+  const margin = { top: 20, right: 20, bottom: 50, left: 55 };
+  const w = W - margin.left - margin.right;
+  const h = H - margin.top - margin.bottom;
+
+  const svg = d3.select('#fig9').append('svg')
+    .attr('id', 'fig9-svg').attr('width', W).attr('height', H)
+    .attr('viewBox', `0 0 ${W} ${H}`).style('background', '#fff');
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const x = d3.scaleLinear().domain([0, 100]).range([0, w]);
+  const y = d3.scaleLinear().domain([0, 100]).range([h, 0]);
+
+  // Diagonal y=x
+  g.append('line').attr('x1', x(0)).attr('y1', y(0)).attr('x2', x(100)).attr('y2', y(100))
+    .attr('stroke', '#999').attr('stroke-dasharray', '5,4').attr('stroke-width', 1);
+
+  g.append('text').attr('x', x(85)).attr('y', y(90)).attr('font-size', 9)
+    .attr('fill', '#999').attr('transform', 'rotate(-45,' + x(85) + ',' + y(90) + ')').text('No penalty (y=x)');
+
+  const QCOLORS = { Independent: '#3B82F6', 'AI-Scaffolded': '#10B981', 'AI-Dependent': '#EF4444', Disengaged: '#94A3B8' };
+
+  // Regular dots
+  ai.forEach(d => {
+    const rawPct = (d.raw_avg || d.avg_completion || 0) * 100;
+    const adjPct = (d.adjusted_avg || rawPct / 100) * 100;
+    const penalty = rawPct - adjPct;
+    const big = penalty > 10;
+    g.append('circle')
+      .attr('cx', x(rawPct)).attr('cy', y(adjPct))
+      .attr('r', big ? 5 : 2.5)
+      .attr('fill', QCOLORS[d.quadrant] || '#94A3B8')
+      .attr('opacity', big ? 0.9 : 0.4)
+      .attr('stroke', big ? '#DC2626' : 'none')
+      .attr('stroke-width', big ? 1.5 : 0);
+  });
+
+  // Annotate worst case
+  let worst = null, worstGap = 0;
+  ai.forEach(d => {
+    const rawPct = (d.raw_avg || d.avg_completion || 0) * 100;
+    const adjPct = (d.adjusted_avg || rawPct / 100) * 100;
+    const gap = rawPct - adjPct;
+    if (gap > worstGap) { worstGap = gap; worst = { ...d, rawPct, adjPct, gap }; }
+  });
+  if (worst) {
+    g.append('line').attr('x1', x(worst.rawPct)).attr('y1', y(worst.adjPct))
+      .attr('x2', x(worst.rawPct) + 40).attr('y2', y(worst.adjPct) - 30)
+      .attr('stroke', '#DC2626').attr('stroke-width', 0.8);
+    g.append('text').attr('x', x(worst.rawPct) + 42).attr('y', y(worst.adjPct) - 32)
+      .attr('font-size', 9).attr('fill', '#DC2626')
+      .text(`${worst.profile_id}: ${worst.rawPct.toFixed(0)}%→${worst.adjPct.toFixed(0)}% (−${worst.gap.toFixed(0)}%p)`);
+  }
+
+  g.append('g').attr('transform', `translate(0,${h})`).call(d3.axisBottom(x).ticks(5).tickFormat(d => d + '%'))
+    .selectAll('text').attr('font-size', 10);
+  g.append('g').call(d3.axisLeft(y).ticks(5).tickFormat(d => d + '%'))
+    .selectAll('text').attr('font-size', 10);
+
+  svg.append('text').attr('x', W / 2).attr('y', H - 8).attr('text-anchor', 'middle')
+    .attr('font-size', 12).text('Raw Completion (%)');
+  svg.append('text').attr('transform', 'rotate(-90)').attr('x', -H / 2).attr('y', 14)
+    .attr('text-anchor', 'middle').attr('font-size', 12).text('AI-Adjusted Score (%)');
+
+  // Legend
+  const lg = g.append('g').attr('transform', `translate(10, 10)`);
+  let li = 0;
+  for (const [name, color] of Object.entries(QCOLORS)) {
+    lg.append('circle').attr('cx', 5).attr('cy', li * 16).attr('r', 4).attr('fill', color);
+    lg.append('text').attr('x', 14).attr('y', li * 16 + 4).attr('font-size', 9).attr('fill', '#555').text(name);
+    li++;
+  }
+  lg.append('circle').attr('cx', 5).attr('cy', li * 16).attr('r', 5)
+    .attr('fill', 'none').attr('stroke', '#DC2626').attr('stroke-width', 1.5);
+  lg.append('text').attr('x', 14).attr('y', li * 16 + 4).attr('font-size', 9).attr('fill', '#DC2626').text('>10%p penalty');
+}
+
+// ══════════════════════════════════════════════════════
+// FIG 10: Phase Sparklines (Top 15 + Bottom 5)
+// ══════════════════════════════════════════════════════
+function drawFig10(data) {
+  const summary = data.summary || [];
+  const session = data.session || [];
+  if (!summary.length || !session.length) return;
+
+  const sorted = [...summary].sort((a, b) => b.avg_progress - a.avg_progress);
+  const top15 = sorted.slice(0, 15);
+  const bot5 = sorted.slice(-5);
+  const selected = [...new Map([...top15, ...bot5].map(d => [d.classroom_name, d])).values()];
+
+  // Sort by curriculum then progress
+  selected.sort((a, b) => a.curriculum.localeCompare(b.curriculum) || b.avg_progress - a.avg_progress);
+
+  const PHASES = [
+    { name: 'Comp.', range: [1, 3], color: '#2563EB' },
+    { name: 'Analysis', range: [4, 7], color: '#10B981' },
+    { name: 'Coding', range: [8, 11], color: '#EF4444' },
+    { name: 'Synth.', range: [12, 15], color: '#8B5CF6' },
+  ];
+
+  // Compute phase averages
+  const phaseData = selected.map(s => {
+    const cls = session.filter(d => d.classroom_name === s.classroom_name);
+    const phases = PHASES.map(p => {
+      const pSess = cls.filter(d => d.session >= p.range[0] && d.session <= p.range[1]);
+      return pSess.length ? d3.mean(pSess, d => d.completion_rate) * 100 : 0;
+    });
+    return { name: s.classroom_name.replace(/\s*(해양쓰레기|기후변화|식량안보)/, ''), curriculum: s.curriculum, phases, isBot: bot5.includes(s) };
+  });
+
+  const n = phaseData.length;
+  const W = 1008, rowH = 22, H = 60 + n * rowH + 30;
+  const margin = { top: 45, right: 120, bottom: 20, left: 100 };
+  const w = W - margin.left - margin.right;
+
+  const svg = d3.select('#fig10').append('svg')
+    .attr('id', 'fig10-svg').attr('width', W).attr('height', H)
+    .attr('viewBox', `0 0 ${W} ${H}`).style('background', '#fff');
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const x = d3.scaleLinear().domain([0, 100]).range([0, w]);
+
+  // Phase header
+  const phaseW = w / 4;
+  PHASES.forEach((p, i) => {
+    g.append('text').attr('x', i * phaseW + phaseW / 2).attr('y', -12)
+      .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', p.color).attr('font-weight', '600')
+      .text(p.name);
+  });
+
+  // Rows
+  phaseData.forEach((d, i) => {
+    const yPos = i * rowH;
+
+    // Name
+    g.append('text').attr('x', -8).attr('y', yPos + rowH / 2 + 3)
+      .attr('text-anchor', 'end').attr('font-size', 10)
+      .attr('fill', d.isBot ? '#DC2626' : '#555')
+      .attr('font-weight', d.isBot ? '600' : '400')
+      .text(d.name);
+
+    // 4 phase bars
+    d.phases.forEach((val, pi) => {
+      const bx = pi * phaseW + 2;
+      const bw = Math.max(0, (val / 100) * (phaseW - 8));
+      g.append('rect').attr('x', bx).attr('y', yPos + 2)
+        .attr('width', bw).attr('height', rowH - 6)
+        .attr('fill', PHASES[pi].color).attr('opacity', 0.7).attr('rx', 2);
+      if (val > 15) {
+        g.append('text').attr('x', bx + bw - 3).attr('y', yPos + rowH / 2 + 3)
+          .attr('text-anchor', 'end').attr('font-size', 8).attr('fill', '#fff')
+          .text(val.toFixed(0) + '%');
+      }
+    });
+
+    // Curriculum label on right
+    const currLabel = CURR_MAP[d.curriculum] || d.curriculum;
+    g.append('text').attr('x', w + 8).attr('y', yPos + rowH / 2 + 3)
+      .attr('font-size', 9).attr('fill', CURR_COLORS[currLabel] || '#999')
+      .text(currLabel);
+  });
+
+  // Curriculum separator lines
+  for (let i = 1; i < phaseData.length; i++) {
+    if (phaseData[i].curriculum !== phaseData[i - 1].curriculum) {
+      g.append('line').attr('x1', -margin.left + 10).attr('x2', w)
+        .attr('y1', i * rowH - 1).attr('y2', i * rowH - 1)
+        .attr('stroke', '#333').attr('stroke-width', 0.8);
+    }
+  }
+
+  // Bottom note
+  svg.append('text').attr('x', margin.left).attr('y', H - 5)
+    .attr('font-size', 10).attr('fill', '#DC2626').attr('font-style', 'italic')
+    .text('* Red names = Bottom 5 schools');
+}
+</script>
+</body>
+</html>
