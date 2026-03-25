@@ -116,7 +116,24 @@ Based on the evaluation feedback, seven improvements were implemented in the tra
 
 7. **AI Insight Panel on Overview**: Added an automated AI-generated summary panel at the overview level to support faster initial pattern identification.
 
-These refinements address the most actionable feedback while preserving the system's core analytical capabilities. A second evaluation round with additional participants is planned to validate the improvements.
+Table 2 summarizes the full scope of changes between v0.5 and v1.0:
+
+| Dimension | v0.5 (1st Evaluation) | v1.0 (Refined) |
+|-----------|----------------------|----------------|
+| Platform | Streamlit prototype | D3.js interactive dashboard (web-deployed) |
+| Navigation | Single overview, dropdown selection | 7 tabs with drill-down flow (overview → school → classroom → student) + search |
+| At-risk detection | None | Auto-detected per school/classroom with risk score and reasons |
+| Student comparison | None | Side-by-side comparison (progress, AI usage, auto-generated insight) |
+| Temporal exploration | Static 15-session view | Session range slider with real-time chart updates |
+| Linked brushing | None | Hover on heatmap row highlights corresponding bars and table rows |
+| Recommendations | Small text below charts | Prominent panel at top with 3 key issues and specific action items |
+| Terminology | Technical (XAI, SHAP, cliff risk factors) | Teacher-friendly (performance drop factors, impact level: very high/high/moderate) |
+| Competency labels | Abbreviations only (DC, DA, DV, DI, CT) | Abbreviation + Korean name + one-line description |
+| Score display | Raw score, adjusted score, independence factor (0.82) | Task completion rate, actual understanding (excl. AI), independence rate (82%) |
+| Curriculum comparison | None | Side-by-side radar, journey, activity distribution, AI dependency for 3 curricula |
+| Search | None | Instant search for schools and student IDs with preview cards |
+
+These refinements address the most actionable feedback while preserving the system's core analytical capabilities. The transition from a single-tab prototype to a multi-level coordinated dashboard represents a substantial architectural change motivated by the evaluation finding that drill-down navigation was the most valued feature (4.9/5.0).
 
 ---
 
@@ -232,4 +249,21 @@ XAI에 대해 참여자들은 설명력을 높이 평가하면서도 개선 여�
 
 7. **개요 AI 인사이트 패널**: 개요 수준에 자동 AI 생성 요약 패널을 추가하여 더 빠른 초기 패턴 식별 지원.
 
-이러한 정제는 시스템의 핵심 분석 기능을 보존하면서 가장 실행 가능한 피드백을 해소한다. 개선 사항을 검증하기 위한 추가 참여자 대상 2차 평가 라운드가 계획되어 있다.
+표 2는 v0.5와 v1.0 간의 전체 변경 범위를 요약한다:
+
+| 차원 | v0.5 (1차 평가) | v1.0 (개선) |
+|------|----------------|-------------|
+| 플랫폼 | Streamlit 프로토타입 | D3.js 인터랙티브 대시보드 (웹 배포) |
+| 탐색 | 단일 전체 현황, 드롭다운 선택 | 7개 탭 + 드릴다운 흐름 (전체→학교→학급→학생) + 검색 |
+| 위험 학생 감지 | 없음 | 학교별/학급별 자동 감지 (위험도 점수 + 이유 표시) |
+| 학생 비교 | 없음 | 나란히 비교 (진도, AI 사용 패턴, 자동 인사이트) |
+| 시간 탐색 | 정적 15차시 뷰 | 차시 범위 슬라이더 + 차트 실시간 업데이트 |
+| 연동 하이라이팅 | 없음 | 히트맵 행 호버 → 바 차트, 테이블 행 연동 |
+| 교수 전략 추천 | 차트 아래 작은 텍스트 | 맨 위 큰 패널 (3개 핵심 이슈 + 구체적 행동 추천) |
+| 용어 | 기술 용어 (XAI, SHAP, 절벽 위험 요인) | 교사 친화적 (진도 하락 원인, 영향력 매우 큼/큼/보통) |
+| 역량 라벨 | 약칭만 (DC, DA, DV, DI, CT) | 약칭 + 한글명 + 한 줄 설명 |
+| 점수 표시 | 원점수, 보정점수, 자립도 (0.82) | 과제 완료율, 실제 이해도(AI 도움 제외), 혼자 한 비율 (82%) |
+| 커리큘럼 비교 | 없음 | 3개 커리큘럼 레이더, 학습여정, 활동분포, AI의존도 나란히 비교 |
+| 검색 | 없음 | 학교명/학생ID 즉시 검색 + 미리보기 카드 |
+
+이러한 정제는 시스템의 핵심 분석 기능을 보존하면서 가장 실행 가능한 피드백을 해소한다. 단일 탭 프로토타입에서 다단계 연동 대시보드로의 전환은 드릴다운 탐색이 가장 높이 평가된 기능(4.9/5.0)이라는 평가 결과에 의해 동기 부여된 실질적 아키텍처 변경이다.

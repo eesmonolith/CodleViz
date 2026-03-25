@@ -10,6 +10,23 @@ Beyond standard visualization components, CodleViz introduces three novel visual
 
 The system also provides several advanced interaction features: **linked brushing** across all nine views, **search functionality** for locating specific schools, classrooms, or students, a **session slider** for temporal exploration, **student comparison mode** for side-by-side analysis, **at-risk student auto-detection** per classroom, and **settings toggles** for AI-adjusted scores, XAI insights, and pedagogical recommendations.
 
+### 4.1.1 Multi-Level Drill-Down: Design Rationale
+
+CodleViz organizes its analytical workflow into six distinct views, each designed for a specific stakeholder and decision context:
+
+| View | Primary User | Decision Question |
+|------|-------------|------------------|
+| **Overview** | Program administrators | Which schools are falling behind? What are the system-wide patterns? |
+| **School** | School coordinators | Are competencies balanced? At which sessions do students disengage? |
+| **Classroom** | Classroom teachers | Which students in my class need attention? Who is over-relying on AI? |
+| **Student** | Classroom teachers | How does this student use AI? How do they compare to peers? |
+| **Analysis** | Researchers, administrators | What are the overall AI usage patterns? What drives performance drops? |
+| **Curriculum** | Program administrators | Which of the three curricula is most effective, and why? |
+
+This multi-level structure follows the Visual Information Seeking Mantra (Shneiderman, 1996): overview first, zoom and filter, then details on demand. The four-level drill-down (overview → school → classroom → student) enables educators to transition from identifying a problem ("8 schools show performance drops") to locating affected individuals ("Student S0486 in School_01 has 53 AI requests despite 98% completion") to reasoning about causes ("SHAP analysis attributes 38% of drop risk to prior completion rate") within a single coordinated environment.
+
+The Curriculum Comparison view serves a distinct analytical need: program administrators evaluating the relative effectiveness of three thematic curricula (Marine Debris, Climate Change, Food Security) require side-by-side comparison across all five competency dimensions---a cross-cutting analysis that does not fit within the hierarchical drill-down.
+
 ### 4.2 View 1: School Comparison (DR1, DR5)
 
 The school comparison view presents a horizontal bar chart of all classrooms ranked by average progress, color-coded by curriculum (Ocean Debris: blue, Climate Change: green, Food Security: amber). Each bar encodes the classroom name, average completion rate, and student count via hover tooltip. This view enables administrators to immediately identify high- and low-performing schools and compare across curricula.
@@ -158,6 +175,23 @@ CodleViz는 코들 플랫폼에서 내보낸 데이터를 분석하는 독립형
 표준 시각화 구성요소 외에, CodleViz는 AI 통합 교육 데이터를 위해 특별히 설계된 3개의 새로운 시각적 분석 기법을 도입한다: (1) 숨겨진 AI 튜터 의존 패턴을 드러내는 **AI 의존도 글리프(AI Dependency Glyph)**, (2) SHAP 기반 원인 설명과 함께 학습 전환 장벽을 자동 식별하는 **성과 절벽 감지기(Performance Cliff Detector)**, (3) 학교 간 비교 분석을 위한 **궤적 정렬 뷰(Trajectory Alignment View)**.
 
 시스템은 또한 여러 고급 인터랙션 기능을 제공한다: 9개 뷰 전체에 걸친 **연동 브러싱**, 학교·학급·학생 검색을 위한 **검색 기능**, 시간 탐색을 위한 **세션 슬라이더**, 나란히 분석을 위한 **학생 비교 모드**, 학급별 **위험 학생 자동 감지**, AI 보정 점수·XAI 인사이트·교수학적 추천을 위한 **설정 토글**.
+
+### 4.1.1 다단계 드릴다운: 설계 근거
+
+CodleViz는 분석 워크플로우를 6개의 뷰로 구성하며, 각 뷰는 특정 이해관계자와 의사결정 맥락을 위해 설계되었다:
+
+| 뷰 | 주요 사용자 | 의사결정 질문 |
+|------|-----------|------------|
+| **전체 현황** | 사업 담당자, 관리자 | 49개 학교 중 어디가 뒤처지는가? 전체적으로 어떤 문제가 있는가? |
+| **학교별** | 관리자, 학교 담당자 | 이 학교의 5개 역량은 균형 잡혀 있는가? 어느 차시에서 이탈하는가? |
+| **학급별** | 담당 교사 | 내 학급에서 주의가 필요한 학생은 누구인가? AI에 과의존하는 학생은? |
+| **학생별** | 담당 교사 | 이 학생은 AI를 어떻게 쓰는가? 다른 학생과 비교하면 어떤가? |
+| **분석** | 연구자, 관리자 | 전체적으로 AI를 어떤 유형으로 활용하는가? 진도 하락의 원인은? |
+| **커리큘럼 비교** | 사업 담당자 | 3개 커리큘럼 중 어떤 것이 가장 효과적이며 왜 그런가? |
+
+이 다단계 구조는 Visual Information Seeking Mantra(Shneiderman, 1996)를 따른다: 먼저 개요, 줌과 필터, 그리고 요청 시 세부 정보. 4단계 드릴다운(전체→학교→학급→학생)을 통해 교육자가 문제 식별("8개 학교에서 진도 급락")에서 해당 개인 특정("School_01의 S0486은 98% 완료율에 AI 53회 사용")으로, 그리고 원인 추론("SHAP 분석은 하락 위험의 38%를 직전 차시 완료율에 귀속")으로 단일 연동 환경 내에서 전환할 수 있다.
+
+커리큘럼 비교 뷰는 별도의 분석적 필요를 충족한다: 3개 주제별 커리큘럼의 상대적 효과를 평가하는 사업 담당자는 5개 역량 차원에 걸친 나란히 비교를 필요로 하며, 이는 계층적 드릴다운에 맞지 않는 횡단적 분석이다.
 
 ### 4.2 뷰 1: 학교 비교 (DR1, DR5)
 
