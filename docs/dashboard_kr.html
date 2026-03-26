@@ -96,6 +96,10 @@ tailwind.config = {
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
       분석
     </a>
+    <a id="nav-multimodal" onclick="navigateTo('multimodal')" class="nav-item flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 cursor-pointer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+      멀티모달 역량 측정
+    </a>
 
     <div class="px-4 mb-2 mt-6">
       <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">커리큘럼</span>
@@ -417,6 +421,11 @@ function navigateTo(view, params) {
       setHeader('분석', 'AI 활용 패턴 및 진도 하락 원인 분석');
       hideBreadcrumb();
       renderAnalysisTab(_globalData);
+      break;
+    case 'multimodal':
+      setHeader('멀티모달 역량 측정', '완료율을 넘어서 · 퀴즈 · 코딩 · 토론 · 텍스트 품질');
+      hideBreadcrumb();
+      renderMultimodalTab(_globalData);
       break;
     case 'curriculum-compare':
       setHeader('커리큘럼 비교', '3개 커리큘럼 성과 비교 \u00b7 사업 담당자용');
@@ -2361,6 +2370,249 @@ function renderAnalysisTab(data) {
   buildAnalysisSHAP();
   buildAnalysisCurriculumComp(data);
   buildAnalysisAdjustmentDist(data);
+}
+
+// ============================================================
+// 멀티모달 역량 측정 탭
+// ============================================================
+function renderMultimodalTab(data) {
+  const content = document.getElementById('dashboard-content');
+  const outcomes = data.learning_outcomes_by_quadrant || [];
+  const errPat   = (data.error_patterns && data.error_patterns.by_quadrant) || [];
+  const errDist  = (data.error_patterns && data.error_patterns.distribution) || [];
+  const mm       = data.multimodal_competency || [];
+
+  content.innerHTML = `
+    <!-- 헤더 배너 -->
+    <div class="bg-gradient-to-r from-violet-700 to-indigo-600 rounded-xl shadow-lg px-6 py-5 text-white mb-1">
+      <h3 class="text-base font-bold mb-1">실제 학습 역량 확인하기</h3>
+      <p class="text-xs text-violet-200 mb-3">활동을 완료했다고 해서 내용을 이해한 건 아닙니다. 이 페이지에서는 퀴즈 정답률, 코딩 과제 수행, 토론 참여, 활동지 서술 수준을 함께 보여드립니다.</p>
+      <div class="grid grid-cols-4 gap-3 text-[11px]">
+        <div class="bg-white/10 rounded-lg px-3 py-2">
+          <span class="font-bold text-yellow-300">퀴즈 정답률</span><br>
+          <span class="text-violet-200">퀴즈에서 맞은 문항 비율입니다. 0%=전부 틀림, 100%=전부 맞음</span>
+        </div>
+        <div class="bg-white/10 rounded-lg px-3 py-2">
+          <span class="font-bold text-emerald-300">코딩 완료율</span><br>
+          <span class="text-violet-200">파이썬 코딩 과제를 얼마나 완성했는지 나타냅니다</span>
+        </div>
+        <div class="bg-white/10 rounded-lg px-3 py-2">
+          <span class="font-bold text-sky-300">토론 참여율</span><br>
+          <span class="text-violet-200">게시판 토론 활동에 참여한 비율입니다</span>
+        </div>
+        <div class="bg-white/10 rounded-lg px-3 py-2">
+          <span class="font-bold text-pink-300">활동지 서술 수준</span><br>
+          <span class="text-violet-200">학생이 활동지에 쓴 내용을 AI가 0~100점으로 평가한 점수</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 선생님 안내 박스 -->
+    <div class="bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 flex items-start gap-3">
+      <svg width="20" height="20" class="text-blue-500 mt-0.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      <div class="text-xs text-blue-800">
+        <p class="font-semibold mb-1">이 페이지 활용 방법</p>
+        <p>학생을 <span class="font-semibold">자립형 / AI활용형 / AI의존형 / 미참여형</span> 4가지로 분류한 뒤, 각 그룹의 실제 학습 성과를 비교합니다. <br>
+        AI를 많이 썼다고 무조건 나쁜 건 아닙니다. <span class="font-semibold text-emerald-700">AI활용형(초록색)</span>은 AI를 도구로 잘 활용하면서 성과도 좋은 학생들입니다. 반면 <span class="font-semibold text-red-600">AI의존형(빨간색)</span>은 AI 없이는 과제를 진행하기 어려운 학생들로, 개별 지도가 필요합니다.</p>
+      </div>
+    </div>
+
+    <!-- 1. AI 활용 유형별 멀티모달 지표 -->
+    <div class="bg-white rounded-xl border border-slate-200/60 shadow-sm card">
+      <div class="px-6 pt-5 pb-2 flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-semibold text-slate-900">학생 유형별 실제 학습 성과 비교</h3>
+          <p class="text-xs text-slate-400 mt-0.5">활동 완료율은 비슷해도 퀴즈·코딩·토론 성과는 그룹마다 다릅니다. 막대가 높을수록 해당 지표의 성과가 좋습니다.</p>
+        </div>
+        <span class="text-[10px] font-medium text-violet-600 bg-violet-50 px-2 py-1 rounded-full">완료율을 넘어서</span>
+      </div>
+      <div id="mm-grouped-bar" class="px-6 pb-2"></div>
+      <div class="px-6 pb-4 grid grid-cols-2 gap-3 text-[11px]">
+        <div class="bg-emerald-50 rounded-lg px-3 py-2 flex items-start gap-2">
+          <span class="text-emerald-600 font-bold mt-0.5">✓</span>
+          <span class="text-emerald-800"><span class="font-semibold">AI활용형</span>은 코딩 완료율과 토론 참여율이 가장 높습니다. AI를 도구로 잘 쓰는 학생들입니다.</span>
+        </div>
+        <div class="bg-red-50 rounded-lg px-3 py-2 flex items-start gap-2">
+          <span class="text-red-500 font-bold mt-0.5">!</span>
+          <span class="text-red-800"><span class="font-semibold">AI의존형</span>은 코딩(39%)과 토론(34%) 성과가 낮습니다. AI 없이 혼자서는 어려워하는 학생들입니다.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 레이더 + 코딩-서술 분포 -->
+    <div class="grid grid-cols-2 gap-5">
+      <div class="bg-white rounded-xl border border-slate-200/60 shadow-sm card">
+        <div class="px-6 pt-5 pb-2">
+          <h3 class="text-sm font-semibold text-slate-900">유형별 강점·약점 한눈에 보기</h3>
+          <p class="text-xs text-slate-400 mt-0.5">오각형이 클수록 전반적인 역량이 높습니다. 어떤 축이 좁은지 보면 어느 영역이 부족한지 알 수 있습니다.</p>
+        </div>
+        <div id="mm-radar" class="px-4 pb-5 flex justify-center"></div>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200/60 shadow-sm card">
+        <div class="px-6 pt-5 pb-2">
+          <h3 class="text-sm font-semibold text-slate-900">코딩을 잘하는 학생이 서술도 잘 할까요?</h3>
+          <p class="text-xs text-slate-400 mt-0.5">점 하나가 학생 1명입니다. <span class="font-semibold">오른쪽 위</span>에 있을수록 코딩도 잘하고 활동지 서술도 잘하는 학생입니다. 색깔은 AI 활용 유형입니다.</p>
+        </div>
+        <div id="mm-scatter" class="px-4 pb-2 flex justify-center"></div>
+        <div class="px-6 pb-4 text-[11px] text-slate-500">
+          <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-500 mr-1"></span>자립형
+          <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 mx-1 ml-3"></span>AI활용형
+          <span class="inline-block w-2.5 h-2.5 rounded-full bg-red-500 mx-1 ml-3"></span>AI의존형
+          <span class="inline-block w-2.5 h-2.5 rounded-full bg-slate-400 mx-1 ml-3"></span>미참여형
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 에러 패턴 -->
+    <div class="grid grid-cols-5 gap-5">
+      <div class="col-span-2 bg-white rounded-xl border border-slate-200/60 shadow-sm card">
+        <div class="px-6 pt-5 pb-2">
+          <h3 class="text-sm font-semibold text-slate-900">학생들이 가장 자주 겪는 코딩 오류</h3>
+          <p class="text-xs text-slate-400 mt-0.5">AI 도움 요청 977건에서 파악한 오류 유형입니다. NameError는 변수·라이브러리를 선언하지 않고 사용할 때 발생합니다.</p>
+        </div>
+        <div id="mm-error-dist" class="px-4 pb-5"></div>
+      </div>
+      <div class="col-span-3 bg-white rounded-xl border border-slate-200/60 shadow-sm card">
+        <div class="px-6 pt-5 pb-2">
+          <h3 class="text-sm font-semibold text-slate-900">같은 오류를 반복하는 학생 비율</h3>
+          <p class="text-xs text-slate-400 mt-0.5">같은 종류의 오류를 3번 이상 반복한 학생의 비율입니다. 비율이 높을수록 개념이 아직 잡히지 않은 학생이 많다는 뜻입니다. <span class="text-red-600 font-semibold">AI의존형이 43%</span>로 가장 높습니다.</p>
+        </div>
+        <div id="mm-error-quad" class="px-4 pb-2"></div>
+        <div class="px-6 pb-4 text-[11px] bg-red-50 mx-4 mb-2 rounded-lg py-2 text-red-700">
+          <span class="font-semibold">지도 포인트:</span> AI의존형 학생 중 같은 오류를 반복하는 학생에게는 AI 답변만 복사하지 말고 원인을 직접 설명해보게 하는 지도가 효과적입니다.
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. 활동지 서술 수준 안내 -->
+    <div class="bg-amber-50 border border-amber-200 rounded-xl px-6 py-4">
+      <div class="flex items-start gap-3">
+        <svg width="18" height="18" class="text-amber-500 mt-0.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div>
+          <p class="text-xs font-semibold text-amber-800 mb-1">활동지 서술 수준 점수는 어떻게 계산하나요?</p>
+          <p class="text-xs text-amber-700">학생들이 AI 튜터에게 활동지 도움을 요청할 때 함께 제출한 답변 826건을 AI(Claude)가 읽고, 구체성·근거 제시·논리적 연결 등을 기준으로 0~100점으로 자동 평가했습니다. 다만 AI 튜터를 사용한 학생의 답변만 분석되므로, AI를 쓰지 않은 자립형 학생의 답변은 포함되지 않는 한계가 있습니다. 이 지표는 참고용으로 활용해 주세요.</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  buildMMGroupedBar(outcomes);
+  buildMMRadar(outcomes);
+  buildMMScatter(mm);
+  buildMMErrorDist(errDist);
+  buildMMErrorQuad(errPat);
+}
+
+function buildMMGroupedBar(outcomes) {
+  const container = document.getElementById('mm-grouped-bar');
+  if (!container || !outcomes.length) return;
+  const metrics = [
+    { key: 'quiz_score',   label: '퀴즈',      color: '#F59E0B' },
+    { key: 'coding_score', label: '코딩',      color: '#10B981' },
+    { key: 'board_score',  label: '토론',      color: '#3B82F6' },
+    { key: 'text_quality', label: '텍스트 품질', color: '#EC4899' },
+  ];
+  const quads = ['Independent','AI-Scaffolded','AI-Dependent','Disengaged'];
+  const quadLabels = { 'Independent':'자립형', 'AI-Scaffolded':'AI활용형', 'AI-Dependent':'AI의존형', 'Disengaged':'미참여형' };
+  const w = container.clientWidth || 720, h = 280;
+  const margin = { top:20, right:160, bottom:45, left:50 };
+  const iw = w-margin.left-margin.right, ih = h-margin.top-margin.bottom;
+  const svg = d3.select(container).append('svg').attr('width',w).attr('height',h);
+  const g = svg.append('g').attr('transform',`translate(${margin.left},${margin.top})`);
+  const x0 = d3.scaleBand().domain(quads).range([0,iw]).paddingInner(0.25);
+  const x1 = d3.scaleBand().domain(metrics.map(m=>m.key)).range([0,x0.bandwidth()]).padding(0.08);
+  const y  = d3.scaleLinear().domain([0,1]).range([ih,0]);
+  const quadColors = { 'Independent':'#3B82F6','AI-Scaffolded':'#10B981','AI-Dependent':'#EF4444','Disengaged':'#94A3B8' };
+
+  g.append('g').selectAll('line').data(y.ticks(5)).enter().append('line')
+    .attr('x1',0).attr('x2',iw).attr('y1',d=>y(d)).attr('y2',d=>y(d))
+    .attr('stroke','#E2E8F0').attr('stroke-dasharray','3,3');
+
+  quads.forEach(q => {
+    const row = outcomes.find(o=>o.quadrant===q); if(!row) return;
+    const xg = g.append('g').attr('transform',`translate(${x0(q)},0)`);
+    metrics.forEach(m => {
+      const val = row[m.key]||0;
+      xg.append('rect').attr('x',x1(m.key)).attr('y',y(val)).attr('width',x1.bandwidth()).attr('height',ih-y(val)).attr('fill',m.color).attr('rx',3).attr('opacity',0.85);
+      xg.append('text').attr('x',x1(m.key)+x1.bandwidth()/2).attr('y',y(val)-3).attr('text-anchor','middle').attr('font-size','9').attr('fill','#475569').text((val*100).toFixed(0)+'%');
+    });
+    g.append('text').attr('x',x0(q)+x0.bandwidth()/2).attr('y',ih+30).attr('text-anchor','middle').attr('font-size','11').attr('font-weight','600').attr('fill',quadColors[q]||'#64748B').text(quadLabels[q]||q);
+  });
+
+  g.append('g').call(d3.axisLeft(y).ticks(5).tickFormat(d=>(d*100)+'%')).call(g=>g.select('.domain').remove()).call(g=>g.selectAll('.tick line').attr('stroke','#E2E8F0'));
+
+  const leg = svg.append('g').attr('transform',`translate(${w-margin.right+12},${margin.top})`);
+  metrics.forEach((m,i)=>{
+    leg.append('rect').attr('x',0).attr('y',i*22).attr('width',12).attr('height',12).attr('fill',m.color).attr('rx',2);
+    leg.append('text').attr('x',16).attr('y',i*22+10).attr('font-size','11').attr('fill','#475569').text(m.label);
+  });
+}
+
+function buildMMRadar(outcomes) {
+  const container = document.getElementById('mm-radar'); if(!container||!outcomes.length) return;
+  const axes = [
+    { key:'quiz_score',      label:'퀴즈' },
+    { key:'coding_score',    label:'코딩' },
+    { key:'board_score',     label:'토론' },
+    { key:'text_quality',    label:'텍스트' },
+    { key:'completion_rate', label:'완료율' },
+  ];
+  const n=axes.length, size=280, cx=size/2, cy=size/2, r=100;
+  const quadColors={'Independent':'#3B82F6','AI-Scaffolded':'#10B981','AI-Dependent':'#EF4444','Disengaged':'#94A3B8'};
+  const svg=d3.select(container).append('svg').attr('width',size+130).attr('height',size);
+  const g=svg.append('g');
+  const angle=i=>(Math.PI*2*i/n)-Math.PI/2;
+  const pt=(val,i)=>[cx+r*val*Math.cos(angle(i)),cy+r*val*Math.sin(angle(i))];
+  [0.25,0.5,0.75,1].forEach(v=>{const pts=axes.map((_,i)=>pt(v,i));g.append('polygon').attr('points',pts.map(p=>p.join(',')).join(' ')).attr('fill','none').attr('stroke','#E2E8F0').attr('stroke-width',1);});
+  axes.forEach((_,i)=>{const[x,y2]=pt(1,i);g.append('line').attr('x1',cx).attr('y1',cy).attr('x2',x).attr('y2',y2).attr('stroke','#E2E8F0');const[lx,ly]=pt(1.22,i);g.append('text').attr('x',lx).attr('y',ly).attr('text-anchor','middle').attr('dominant-baseline','middle').attr('font-size','10').attr('fill','#64748B').text(axes[i].label);});
+  ['Independent','AI-Scaffolded','AI-Dependent'].forEach(q=>{const row=outcomes.find(o=>o.quadrant===q);if(!row)return;const pts=axes.map((a,i)=>pt(row[a.key]||0,i));g.append('polygon').attr('points',pts.map(p=>p.join(',')).join(' ')).attr('fill',quadColors[q]).attr('fill-opacity',0.12).attr('stroke',quadColors[q]).attr('stroke-width',2);});
+  const quadLabels={'Independent':'자립형','AI-Scaffolded':'AI활용형','AI-Dependent':'AI의존형'};
+  const leg=svg.append('g').attr('transform',`translate(${size+8},30)`);
+  ['Independent','AI-Scaffolded','AI-Dependent'].forEach((q,i)=>{leg.append('rect').attr('x',0).attr('y',i*22).attr('width',12).attr('height',12).attr('fill',quadColors[q]).attr('rx',2);leg.append('text').attr('x',16).attr('y',i*22+10).attr('font-size','10').attr('fill','#475569').text(quadLabels[q]);});
+}
+
+function buildMMScatter(mm) {
+  const container=document.getElementById('mm-scatter'); if(!container||!mm.length) return;
+  const valid=mm.filter(d=>d.coding_score!=null&&d.text_quality!=null);
+  const w=320,h=280,m={top:20,right:20,bottom:45,left:50};
+  const iw=w-m.left-m.right,ih=h-m.top-m.bottom;
+  const svg=d3.select(container).append('svg').attr('width',w).attr('height',h);
+  const g=svg.append('g').attr('transform',`translate(${m.left},${m.top})`);
+  const x=d3.scaleLinear().domain([0,1]).range([0,iw]);
+  const y=d3.scaleLinear().domain([0,1]).range([ih,0]);
+  const qc={'Independent':'#3B82F6','AI-Scaffolded':'#10B981','AI-Dependent':'#EF4444','Disengaged':'#94A3B8'};
+  g.append('g').call(d3.axisBottom(x).ticks(5).tickFormat(d=>(d*100)+'%')).attr('transform',`translate(0,${ih})`).call(g=>g.select('.domain').remove());
+  g.append('g').call(d3.axisLeft(y).ticks(5).tickFormat(d=>(d*100)+'%')).call(g=>g.select('.domain').remove());
+  g.append('text').attr('x',iw/2).attr('y',ih+36).attr('text-anchor','middle').attr('font-size','10').attr('fill','#64748B').text('코딩 완료율');
+  g.append('text').attr('transform','rotate(-90)').attr('x',-ih/2).attr('y',-38).attr('text-anchor','middle').attr('font-size','10').attr('fill','#64748B').text('텍스트 품질');
+  g.selectAll('circle').data(valid).enter().append('circle').attr('cx',d=>x(d.coding_score)).attr('cy',d=>y(d.text_quality)).attr('r',4).attr('fill',d=>qc[d.quadrant]||'#94A3B8').attr('opacity',0.6);
+}
+
+function buildMMErrorDist(errDist) {
+  const container=document.getElementById('mm-error-dist'); if(!container||!errDist.length) return;
+  const top8=errDist.slice(0,8),w=container.clientWidth||280,barH=26,pad=4;
+  const maxVal=top8[0].count,h=top8.length*(barH+pad)+20;
+  const svg=d3.select(container).append('svg').attr('width',w).attr('height',h);
+  const labelW=160,total=errDist.reduce((s,d)=>s+d.count,0);
+  const barColors=['#EF4444','#F59E0B','#3B82F6','#10B981','#8B5CF6','#EC4899','#06B6D4','#94A3B8'];
+  top8.forEach((d,i)=>{const bw=(d.count/maxVal)*(w-labelW-50),y=i*(barH+pad)+4;svg.append('text').attr('x',0).attr('y',y+barH/2+4).attr('font-size','10').attr('fill','#475569').text(d.error_type);svg.append('rect').attr('x',labelW).attr('y',y).attr('width',bw).attr('height',barH-2).attr('fill',barColors[i%8]).attr('rx',3).attr('opacity',0.8);svg.append('text').attr('x',labelW+bw+4).attr('y',y+barH/2+4).attr('font-size','10').attr('fill','#64748B').text(d.count+'건 ('+(d.count/total*100).toFixed(0)+'%)');});
+}
+
+function buildMMErrorQuad(errPat) {
+  const container=document.getElementById('mm-error-quad'); if(!container||!errPat.length) return;
+  const w=container.clientWidth||480,h=240,m={top:20,right:20,bottom:55,left:50};
+  const iw=w-m.left-m.right,ih=h-m.top-m.bottom;
+  const svg=d3.select(container).append('svg').attr('width',w).attr('height',h);
+  const g=svg.append('g').attr('transform',`translate(${m.left},${m.top})`);
+  const qc={'Independent':'#3B82F6','AI-Scaffolded':'#10B981','AI-Dependent':'#EF4444','Disengaged':'#94A3B8'};
+  const quadLabels={'Independent':'자립형','AI-Scaffolded':'AI활용형','AI-Dependent':'AI의존형','Disengaged':'미참여형'};
+  const quads=errPat.map(d=>d.quadrant);
+  const x=d3.scaleBand().domain(quads).range([0,iw]).padding(0.35);
+  const y=d3.scaleLinear().domain([0,0.55]).range([ih,0]);
+  g.append('g').selectAll('line').data(y.ticks(5)).enter().append('line').attr('x1',0).attr('x2',iw).attr('y1',d=>y(d)).attr('y2',d=>y(d)).attr('stroke','#E2E8F0').attr('stroke-dasharray','3,3');
+  g.append('g').call(d3.axisLeft(y).ticks(5).tickFormat(d=>(d*100).toFixed(0)+'%')).call(g=>g.select('.domain').remove());
+  g.append('text').attr('transform','rotate(-90)').attr('x',-ih/2).attr('y',-38).attr('text-anchor','middle').attr('font-size','10').attr('fill','#64748B').text('동일 에러 3회↑ 반복 학생 비율');
+  errPat.forEach(d=>{const val=d.repeat_error_rate||0;g.append('rect').attr('x',x(d.quadrant)).attr('y',y(val)).attr('width',x.bandwidth()).attr('height',ih-y(val)).attr('fill',qc[d.quadrant]||'#94A3B8').attr('rx',4).attr('opacity',0.85);g.append('text').attr('x',x(d.quadrant)+x.bandwidth()/2).attr('y',y(val)-5).attr('text-anchor','middle').attr('font-size','11').attr('font-weight','600').attr('fill','#1E293B').text((val*100).toFixed(0)+'%');g.append('text').attr('x',x(d.quadrant)+x.bandwidth()/2).attr('y',ih+18).attr('text-anchor','middle').attr('font-size','11').attr('font-weight','600').attr('fill',qc[d.quadrant]||'#64748B').text(quadLabels[d.quadrant]||d.quadrant);g.append('text').attr('x',x(d.quadrant)+x.bandwidth()/2).attr('y',ih+32).attr('text-anchor','middle').attr('font-size','10').attr('fill','#94A3B8').text('n='+d.n_students);});
 }
 
 function buildAnalysisAIDependency(data) {

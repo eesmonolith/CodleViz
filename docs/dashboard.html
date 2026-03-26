@@ -96,6 +96,10 @@ tailwind.config = {
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
       Analysis
     </a>
+    <a id="nav-multimodal" onclick="navigateTo('multimodal')" class="nav-item flex items-center gap-3 px-5 py-2.5 text-sm text-slate-400 cursor-pointer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+      Multimodal Assessment
+    </a>
 
     <div class="px-4 mb-2 mt-6">
       <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Curriculum</span>
@@ -417,6 +421,11 @@ function navigateTo(view, params) {
       setHeader('Analysis', 'AI Usage Patterns and Performance Drop Analysis');
       hideBreadcrumb();
       renderAnalysisTab(_globalData);
+      break;
+    case 'multimodal':
+      setHeader('Multimodal Assessment', 'Beyond Completion Rates · Quiz · Coding · Discussion · Text Quality');
+      hideBreadcrumb();
+      renderMultimodalTab(_globalData);
       break;
     case 'curriculum-compare':
       setHeader('Curriculum Compare', '3-Curriculum Performance Comparison \u00b7 For Program Managers');
@@ -2361,6 +2370,284 @@ function renderAnalysisTab(data) {
   buildAnalysisSHAP();
   buildAnalysisCurriculumComp(data);
   buildAnalysisAdjustmentDist(data);
+}
+
+// ============================================================
+// MULTIMODAL ASSESSMENT TAB
+// ============================================================
+function renderMultimodalTab(data) {
+  const content = document.getElementById('dashboard-content');
+  const outcomes = data.learning_outcomes_by_quadrant || [];
+  const errPat   = (data.error_patterns && data.error_patterns.by_quadrant) || [];
+  const errDist  = (data.error_patterns && data.error_patterns.distribution) || [];
+  const mm       = data.multimodal_competency || [];
+
+  content.innerHTML = `
+    <!-- Hero banner -->
+    <div class="bg-gradient-to-r from-violet-700 to-indigo-600 rounded-xl shadow-lg px-6 py-5 text-white mb-1">
+      <h3 class="text-base font-bold mb-1">Multimodal AI Competency Assessment</h3>
+      <p class="text-xs text-violet-200 mb-3">Measuring learning outcomes beyond completion rates — Quiz accuracy, Coding performance, Discussion engagement, and AI-evaluated text quality</p>
+      <div class="grid grid-cols-4 gap-3 text-[11px]">
+        <div class="bg-white/10 rounded-lg px-3 py-2"><span class="font-bold text-yellow-300">Quiz</span><br>Knowledge check (0/1 correct)</div>
+        <div class="bg-white/10 rounded-lg px-3 py-2"><span class="font-bold text-emerald-300">Coding</span><br>Studio/Entry task completion</div>
+        <div class="bg-white/10 rounded-lg px-3 py-2"><span class="font-bold text-sky-300">Discussion</span><br>Board participation rate</div>
+        <div class="bg-white/10 rounded-lg px-3 py-2"><span class="font-bold text-pink-300">Text Quality</span><br>LLM-evaluated worksheet responses</div>
+      </div>
+    </div>
+
+    <!-- 1. 4사분면별 멀티모달 지표 grouped bar -->
+    <div class="bg-white rounded-xl border border-slate-200/60 shadow-sm card">
+      <div class="px-6 pt-5 pb-3 flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-semibold text-slate-900">Learning Outcomes by AI Usage Type</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Comparing 4 multimodal indicators across student groups. Completion rate alone misses these differences.</p>
+        </div>
+        <span class="text-[10px] font-medium text-violet-600 bg-violet-50 px-2 py-1 rounded-full">Beyond Completion Rates</span>
+      </div>
+      <div id="mm-grouped-bar" class="px-6 pb-5"></div>
+    </div>
+
+    <!-- 2. Radar + Scatter -->
+    <div class="grid grid-cols-2 gap-5">
+      <div class="bg-white rounded-xl border border-slate-200/60 shadow-sm card">
+        <div class="px-6 pt-5 pb-3">
+          <h3 class="text-sm font-semibold text-slate-900">Competency Profile by Group</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Multimodal radar — each axis is a distinct learning outcome</p>
+        </div>
+        <div id="mm-radar" class="px-4 pb-5 flex justify-center"></div>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200/60 shadow-sm card">
+        <div class="px-6 pt-5 pb-3">
+          <h3 class="text-sm font-semibold text-slate-900">Coding Performance vs Text Quality</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Each dot = one student, colored by AI usage type</p>
+        </div>
+        <div id="mm-scatter" class="px-4 pb-5 flex justify-center"></div>
+      </div>
+    </div>
+
+    <!-- 3. 에러 패턴 -->
+    <div class="grid grid-cols-5 gap-5">
+      <div class="col-span-2 bg-white rounded-xl border border-slate-200/60 shadow-sm card">
+        <div class="px-6 pt-5 pb-3">
+          <h3 class="text-sm font-semibold text-slate-900">Error Type Distribution</h3>
+          <p class="text-xs text-slate-400 mt-0.5">977 error-help events from coding sessions</p>
+        </div>
+        <div id="mm-error-dist" class="px-4 pb-5"></div>
+      </div>
+      <div class="col-span-3 bg-white rounded-xl border border-slate-200/60 shadow-sm card">
+        <div class="px-6 pt-5 pb-3">
+          <h3 class="text-sm font-semibold text-slate-900">Error Repetition Pattern by AI Usage Type</h3>
+          <p class="text-xs text-slate-400 mt-0.5">% of students who repeated the same error 3+ times — indicates unresolved conceptual gaps</p>
+        </div>
+        <div id="mm-error-quad" class="px-4 pb-5"></div>
+      </div>
+    </div>
+
+    <!-- 4. Text quality note -->
+    <div class="bg-amber-50 border border-amber-200 rounded-xl px-6 py-4">
+      <div class="flex items-start gap-3">
+        <svg width="18" height="18" class="text-amber-500 mt-0.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div>
+          <p class="text-xs font-semibold text-amber-800 mb-1">About Text Quality Scores</p>
+          <p class="text-xs text-amber-700">826 student worksheet responses were evaluated by Claude (claude-haiku-4-5) on a 0–1 scale assessing depth of data science reasoning. Scores reflect only students who used the AI tutor's sheet-help feature, introducing a selection bias. Group differences in text quality were statistically non-significant (p = 0.79), suggesting this modality requires broader data collection — a key direction for future work.</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  buildMMGroupedBar(outcomes);
+  buildMMRadar(outcomes);
+  buildMMScatter(mm);
+  buildMMErrorDist(errDist);
+  buildMMErrorQuad(errPat);
+}
+
+function buildMMGroupedBar(outcomes) {
+  const container = document.getElementById('mm-grouped-bar');
+  if (!container || !outcomes.length) return;
+
+  const metrics = [
+    { key: 'quiz_score',    label: 'Quiz',       color: '#F59E0B' },
+    { key: 'coding_score',  label: 'Coding',     color: '#10B981' },
+    { key: 'board_score',   label: 'Discussion', color: '#3B82F6' },
+    { key: 'text_quality',  label: 'Text Quality',color: '#EC4899' },
+  ];
+  const quads = ['Independent','AI-Scaffolded','AI-Dependent','Disengaged'];
+  const w = container.clientWidth || 720, h = 280;
+  const margin = { top: 20, right: 160, bottom: 40, left: 50 };
+  const innerW = w - margin.left - margin.right;
+  const innerH = h - margin.top - margin.bottom;
+
+  const svg = d3.select(container).append('svg').attr('width', w).attr('height', h);
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const x0 = d3.scaleBand().domain(quads).range([0, innerW]).paddingInner(0.25);
+  const x1 = d3.scaleBand().domain(metrics.map(m=>m.key)).range([0, x0.bandwidth()]).padding(0.08);
+  const y  = d3.scaleLinear().domain([0, 1]).range([innerH, 0]);
+
+  // gridlines
+  g.append('g').attr('class','grid').selectAll('line').data(y.ticks(5)).enter().append('line')
+    .attr('x1',0).attr('x2',innerW).attr('y1',d=>y(d)).attr('y2',d=>y(d))
+    .attr('stroke','#E2E8F0').attr('stroke-dasharray','3,3');
+
+  const quadColors = { 'Independent':'#3B82F6','AI-Scaffolded':'#10B981','AI-Dependent':'#EF4444','Disengaged':'#94A3B8' };
+
+  quads.forEach(q => {
+    const row = outcomes.find(o => o.quadrant === q);
+    if (!row) return;
+    const xg = g.append('g').attr('transform', `translate(${x0(q)},0)`);
+    metrics.forEach(m => {
+      const val = row[m.key] || 0;
+      xg.append('rect')
+        .attr('x', x1(m.key)).attr('y', y(val))
+        .attr('width', x1.bandwidth()).attr('height', innerH - y(val))
+        .attr('fill', m.color).attr('rx', 3).attr('opacity', 0.85);
+      xg.append('text').attr('x', x1(m.key) + x1.bandwidth()/2).attr('y', y(val)-3)
+        .attr('text-anchor','middle').attr('font-size','9').attr('fill','#475569')
+        .text((val*100).toFixed(0)+'%');
+    });
+    // x-axis label
+    g.append('text').attr('x', x0(q) + x0.bandwidth()/2).attr('y', innerH+28)
+      .attr('text-anchor','middle').attr('font-size','11').attr('font-weight','600')
+      .attr('fill', quadColors[q] || '#64748B').text(q);
+  });
+
+  // y axis
+  g.append('g').call(d3.axisLeft(y).ticks(5).tickFormat(d => (d*100)+'%')).call(g => g.select('.domain').remove()).call(g => g.selectAll('.tick line').attr('stroke','#E2E8F0'));
+
+  // legend
+  const leg = svg.append('g').attr('transform', `translate(${w - margin.right + 12}, ${margin.top})`);
+  metrics.forEach((m,i) => {
+    leg.append('rect').attr('x',0).attr('y',i*22).attr('width',12).attr('height',12).attr('fill',m.color).attr('rx',2);
+    leg.append('text').attr('x',16).attr('y',i*22+10).attr('font-size','11').attr('fill','#475569').text(m.label);
+  });
+}
+
+function buildMMRadar(outcomes) {
+  const container = document.getElementById('mm-radar');
+  if (!container || !outcomes.length) return;
+
+  const axes = [
+    { key: 'quiz_score',   label: 'Quiz' },
+    { key: 'coding_score', label: 'Coding' },
+    { key: 'board_score',  label: 'Discussion' },
+    { key: 'text_quality', label: 'Text' },
+    { key: 'completion_rate', label: 'Completion' },
+  ];
+  const n = axes.length;
+  const size = 280, cx = size/2, cy = size/2, r = 100;
+  const quadColors = { 'Independent':'#3B82F6','AI-Scaffolded':'#10B981','AI-Dependent':'#EF4444','Disengaged':'#94A3B8' };
+  const svg = d3.select(container).append('svg').attr('width', size + 120).attr('height', size);
+  const g = svg.append('g');
+
+  const angle = i => (Math.PI * 2 * i / n) - Math.PI/2;
+  const pt = (val, i) => [cx + r * val * Math.cos(angle(i)), cy + r * val * Math.sin(angle(i))];
+
+  // grid circles
+  [0.25,0.5,0.75,1].forEach(v => {
+    const pts = axes.map((_,i) => pt(v,i));
+    g.append('polygon').attr('points', pts.map(p=>p.join(',')).join(' ')).attr('fill','none').attr('stroke','#E2E8F0').attr('stroke-width',1);
+  });
+  // axes
+  axes.forEach((_,i) => {
+    const [x,y2] = pt(1,i);
+    g.append('line').attr('x1',cx).attr('y1',cy).attr('x2',x).attr('y2',y2).attr('stroke','#E2E8F0');
+    const [lx,ly] = pt(1.22,i);
+    g.append('text').attr('x',lx).attr('y',ly).attr('text-anchor','middle').attr('dominant-baseline','middle').attr('font-size','10').attr('fill','#64748B').text(axes[i].label);
+  });
+
+  const quadsToShow = ['Independent','AI-Scaffolded','AI-Dependent'];
+  quadsToShow.forEach(q => {
+    const row = outcomes.find(o => o.quadrant === q);
+    if (!row) return;
+    const pts = axes.map((a,i) => pt(row[a.key] || 0, i));
+    g.append('polygon').attr('points', pts.map(p=>p.join(',')).join(' '))
+      .attr('fill', quadColors[q]).attr('fill-opacity',0.12)
+      .attr('stroke', quadColors[q]).attr('stroke-width',2);
+  });
+
+  // legend
+  const leg = svg.append('g').attr('transform', `translate(${size+8}, 30)`);
+  quadsToShow.forEach((q,i) => {
+    leg.append('rect').attr('x',0).attr('y',i*22).attr('width',12).attr('height',12).attr('fill',quadColors[q]).attr('rx',2);
+    leg.append('text').attr('x',16).attr('y',i*22+10).attr('font-size','10').attr('fill','#475569').text(q);
+  });
+}
+
+function buildMMScatter(mm) {
+  const container = document.getElementById('mm-scatter');
+  if (!container || !mm.length) return;
+  const valid = mm.filter(d => d.coding_score != null && d.text_quality != null);
+  const w = 320, h = 280, m = { top:20, right:20, bottom:40, left:45 };
+  const iw = w-m.left-m.right, ih = h-m.top-m.bottom;
+  const svg = d3.select(container).append('svg').attr('width',w).attr('height',h);
+  const g = svg.append('g').attr('transform',`translate(${m.left},${m.top})`);
+  const x = d3.scaleLinear().domain([0,1]).range([0,iw]);
+  const y = d3.scaleLinear().domain([0,1]).range([ih,0]);
+  const qc = { 'Independent':'#3B82F6','AI-Scaffolded':'#10B981','AI-Dependent':'#EF4444','Disengaged':'#94A3B8' };
+
+  g.append('g').call(d3.axisBottom(x).ticks(5).tickFormat(d=>(d*100)+'%')).attr('transform',`translate(0,${ih})`).call(g=>g.select('.domain').remove());
+  g.append('g').call(d3.axisLeft(y).ticks(5).tickFormat(d=>(d*100)+'%')).call(g=>g.select('.domain').remove());
+  g.append('text').attr('x',iw/2).attr('y',ih+34).attr('text-anchor','middle').attr('font-size','10').attr('fill','#64748B').text('Coding Score');
+  g.append('text').attr('transform','rotate(-90)').attr('x',-ih/2).attr('y',-32).attr('text-anchor','middle').attr('font-size','10').attr('fill','#64748B').text('Text Quality');
+
+  g.selectAll('circle').data(valid).enter().append('circle')
+    .attr('cx', d=>x(d.coding_score)).attr('cy', d=>y(d.text_quality))
+    .attr('r', 4).attr('fill', d=>qc[d.quadrant]||'#94A3B8').attr('opacity',0.6);
+}
+
+function buildMMErrorDist(errDist) {
+  const container = document.getElementById('mm-error-dist');
+  if (!container || !errDist.length) return;
+  const top8 = errDist.slice(0,8);
+  const w = container.clientWidth || 280, barH = 26, pad = 4;
+  const maxVal = top8[0].count;
+  const h = top8.length * (barH + pad) + 20;
+  const svg = d3.select(container).append('svg').attr('width',w).attr('height',h);
+  const labelW = 160, total = errDist.reduce((s,d)=>s+d.count,0);
+  const barColors = ['#EF4444','#F59E0B','#3B82F6','#10B981','#8B5CF6','#EC4899','#06B6D4','#94A3B8'];
+
+  top8.forEach((d,i) => {
+    const bw = (d.count / maxVal) * (w - labelW - 50);
+    const y = i*(barH+pad)+4;
+    svg.append('text').attr('x',0).attr('y',y+barH/2+4).attr('font-size','10').attr('fill','#475569').text(d.error_type);
+    svg.append('rect').attr('x',labelW).attr('y',y).attr('width',bw).attr('height',barH-2).attr('fill',barColors[i%8]).attr('rx',3).attr('opacity',0.8);
+    svg.append('text').attr('x',labelW+bw+4).attr('y',y+barH/2+4).attr('font-size','10').attr('fill','#64748B').text(d.count+' ('+(d.count/total*100).toFixed(0)+'%)');
+  });
+}
+
+function buildMMErrorQuad(errPat) {
+  const container = document.getElementById('mm-error-quad');
+  if (!container || !errPat.length) return;
+  const w = container.clientWidth || 480, h = 240;
+  const m = { top:20, right:20, bottom:50, left:50 };
+  const iw = w-m.left-m.right, ih = h-m.top-m.bottom;
+  const svg = d3.select(container).append('svg').attr('width',w).attr('height',h);
+  const g = svg.append('g').attr('transform',`translate(${m.left},${m.top})`);
+  const qc = { 'Independent':'#3B82F6','AI-Scaffolded':'#10B981','AI-Dependent':'#EF4444','Disengaged':'#94A3B8' };
+  const quads = errPat.map(d=>d.quadrant);
+
+  const x = d3.scaleBand().domain(quads).range([0,iw]).padding(0.35);
+  const y = d3.scaleLinear().domain([0,0.55]).range([ih,0]);
+
+  g.append('g').attr('class','grid').selectAll('line').data(y.ticks(5)).enter().append('line')
+    .attr('x1',0).attr('x2',iw).attr('y1',d=>y(d)).attr('y2',d=>y(d)).attr('stroke','#E2E8F0').attr('stroke-dasharray','3,3');
+
+  g.append('g').call(d3.axisBottom(x)).attr('transform',`translate(0,${ih})`).call(g=>g.select('.domain').remove());
+  g.append('g').call(d3.axisLeft(y).ticks(5).tickFormat(d=>(d*100).toFixed(0)+'%')).call(g=>g.select('.domain').remove());
+  g.append('text').attr('transform','rotate(-90)').attr('x',-ih/2).attr('y',-38).attr('text-anchor','middle').attr('font-size','10').attr('fill','#64748B').text('Repeat Error Rate (≥3 times)');
+
+  errPat.forEach(d => {
+    const val = d.repeat_error_rate || 0;
+    g.append('rect').attr('x',x(d.quadrant)).attr('y',y(val)).attr('width',x.bandwidth()).attr('height',ih-y(val))
+      .attr('fill',qc[d.quadrant]||'#94A3B8').attr('rx',4).attr('opacity',0.85);
+    g.append('text').attr('x',x(d.quadrant)+x.bandwidth()/2).attr('y',y(val)-5)
+      .attr('text-anchor','middle').attr('font-size','11').attr('font-weight','600').attr('fill','#1E293B')
+      .text((val*100).toFixed(0)+'%');
+    g.append('text').attr('x',x(d.quadrant)+x.bandwidth()/2).attr('y',ih+32)
+      .attr('text-anchor','middle').attr('font-size','10').attr('fill','#64748B')
+      .text('n='+d.n_students);
+  });
 }
 
 function buildAnalysisAIDependency(data) {
